@@ -1,29 +1,25 @@
-# React + Vite
+# Sistema Web para la Gestión de Evaluaciones Psicolaborales - AquaChile
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Descripción del proyecto
+MVP Full Stack desarrollado para la asignatura Desarrollo Full Stack II. El sistema digitaliza y centraliza la información básica del proceso de evaluación psicolaboral del área de Reclutamiento y Selección de AquaChile.
 
-Currently, two official plugins are available:
+## Contexto del problema
+Actualmente, el proceso se administra mediante múltiples herramientas fragmentadas (Forms, Excel, Planner, correos), lo que genera trabajo manual repetitivo y falta de centralización de la información.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-
-## Estado actual del desarrollo
-
-- [x] La vista de Listado de Candidatos fue creada.
-- [x] La vista de Solicitudes está creada.
-- [x] El formulario de registro de candidato está creado.
-- [x] El formulario de nueva solicitud está creado.
-
-## Ejecutar el proyecto
-
-```bash
-npm run dev
-```
+## Estructura del Proyecto
+```text
+AquaChile/
+├── frontend/               # Aplicación React con Vite y Tailwind CSS
+│   ├── src/
+│   │   ├── components/     # Componentes reutilizables (Layout, etc.)
+│   │   ├── pages/          # Vistas (Dashboard, Candidatos, Solicitudes, etc.)
+│   │   ├── context/        # Manejo de estados globales
+│   │   ├── services/       # Conexión futura a la API backend
+│   │   └── utils/          # Funciones genéricas de apoyo
+│   └── ...
+├── backend/                # (Pendiente de inicializar) Lógica de negocio y API REST
+└── docs/                   # Documentación adicional del proyecto
+    ├── informe/            # Informes académicos de la asignatura
+    ├── documentacion/      # Anexos, requerimientos y manuales
+    ├── imagenes/           # Capturas de pantalla y diagramas
+    └── otros/              # Material complementario entregado por AquaChile
