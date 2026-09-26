@@ -28,7 +28,7 @@ AquaChile/
 ## Evidencia Visual del MVP
 A continuación se muestra una vista previa del formulario de nueva solicitud de evaluación estilizado con Tailwind CSS:
 
-![Vista Nueva Solicitud](docs/imagenes/vista-nueva-solicitud.png)
+![Vista Nueva Solicitud](./docs/imagenes/vista-nueva-solicitud.png)
 
 - [x] La vista de detalle y registro de evaluación está creada.
 
