@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 export default function Candidatos() {
   // Datos ficticios obligatorios para el MVP académico
@@ -12,9 +13,12 @@ export default function Candidatos() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Listado de Candidatos</h1>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors shadow-sm">
+        <Link
+          to="/candidatos/nuevo"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors shadow-sm"
+        >
           + Nuevo Candidato
-        </button>
+        </Link>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
