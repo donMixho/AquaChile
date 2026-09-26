@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 function Solicitudes() {
   const [solicitudes] = useState([
@@ -38,12 +39,12 @@ function Solicitudes() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-slate-800">Solicitudes de Evaluación</h1>
-        <button
-          type="button"
+        <Link
+          to="/solicitudes/nueva"
           className="inline-flex items-center justify-center rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-700"
         >
           + Nueva Solicitud
-        </button>
+        </Link>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">

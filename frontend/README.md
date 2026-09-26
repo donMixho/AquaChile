@@ -20,6 +20,7 @@ If you are developing a production application, we recommend using TypeScript wi
 - [x] La vista de Listado de Candidatos fue creada.
 - [x] La vista de Solicitudes está creada.
 - [x] El formulario de registro de candidato está creado.
+- [x] El formulario de nueva solicitud está creado.
 
 ## Ejecutar el proyecto
 

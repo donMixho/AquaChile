@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Candidatos from './pages/Candidatos'
 import Solicitudes from './pages/Solicitudes'
 import NuevoCandidato from './pages/NuevoCandidato'
+import NuevaSolicitud from './pages/NuevaSolicitud'
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="candidatos" element={<Candidatos />} />
           <Route path="candidatos/nuevo" element={<NuevoCandidato />} />
           <Route path="solicitudes" element={<Solicitudes />} />
+          <Route path="solicitudes/nueva" element={<NuevaSolicitud />} />
         </Route>
       </Routes>
     </BrowserRouter>
