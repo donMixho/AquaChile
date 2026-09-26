@@ -5,6 +5,7 @@ import Candidatos from './pages/Candidatos'
 import Solicitudes from './pages/Solicitudes'
 import NuevoCandidato from './pages/NuevoCandidato'
 import NuevaSolicitud from './pages/NuevaSolicitud'
+import DetalleSolicitud from './pages/DetalleSolicitud'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="candidatos/nuevo" element={<NuevoCandidato />} />
           <Route path="solicitudes" element={<Solicitudes />} />
           <Route path="solicitudes/nueva" element={<NuevaSolicitud />} />
+          <Route path="solicitudes/:id" element={<DetalleSolicitud />} />
         </Route>
       </Routes>
     </BrowserRouter>

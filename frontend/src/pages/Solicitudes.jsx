@@ -73,9 +73,9 @@ function Solicitudes() {
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-700">{solicitud.responsable}</td>
                 <td className="px-4 py-3 text-sm">
-                  <button type="button" className="font-medium text-sky-600 hover:text-sky-700">
+                  <Link to="/solicitudes/1" className="font-medium text-sky-600 hover:text-sky-700">
                     Ver Detalle
-                  </button>
+                  </Link>
                 </td>
               </tr>
             ))}
