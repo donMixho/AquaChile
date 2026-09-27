@@ -6,6 +6,7 @@ import Solicitudes from './pages/Solicitudes'
 import NuevoCandidato from './pages/NuevoCandidato'
 import NuevaSolicitud from './pages/NuevaSolicitud'
 import DetalleSolicitud from './pages/DetalleSolicitud'
+import DetalleEvaluacion from './pages/DetalleEvaluacion' 
 
 function App() {
   return (
@@ -18,6 +19,10 @@ function App() {
           <Route path="solicitudes" element={<Solicitudes />} />
           <Route path="solicitudes/nueva" element={<NuevaSolicitud />} />
           <Route path="solicitudes/:id" element={<DetalleSolicitud />} />
+          
+          {/* 2. Agregamos la ruta para que puedas ver y probar tu trabajo */}
+          <Route path="solicitudes/:id/evaluar" element={<DetalleEvaluacion />} />
+          
         </Route>
       </Routes>
     </BrowserRouter>
