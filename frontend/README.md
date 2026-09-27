@@ -25,12 +25,14 @@ AquaChile/
     └── otros/              # Material complementario entregado por AquaChile
 ```
 
-## Evidencia Visual del MVP
-A continuación se muestra una vista previa del formulario de nueva solicitud de evaluación estilizado con Tailwind CSS:
+## Estado actual del desarrollo (MVP Frontend)
+- [x] Inicialización del repositorio y configuración de React + Tailwind v4.
+- [x] Creación de sistema de rutas con React Router.
+- [x] Vistas del Analista: Dashboard, Listado de Candidatos, Listado de Solicitudes y Formularios.
+- [x] Vistas del Evaluador: Detalle de solicitud y registro de resultados (`DetalleEvaluacion.jsx`).
+- [x] Rediseño del Layout con integración del logo corporativo de AquaChile.
 
-![Vista Nueva Solicitud](./docs/imagenes/vista-nueva-solicitud.png)
-
-- [x] La vista de detalle y registro de evaluación está creada.
+![Evidencia Visual](./docs/imagenes/vista-nueva-solicitud.png)
 
 ## Ejecutar el proyecto
 ```bash
