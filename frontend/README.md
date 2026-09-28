@@ -25,6 +25,15 @@ AquaChile/
     └── otros/              # Material complementario entregado por AquaChile
 ```
 
+## 🛠️ Justificación del Stack Tecnológico (Frontend)
+
+La elección de **React**, **Vite** y **Tailwind CSS v4** responde a la necesidad de construir una interfaz moderna, altamente reactiva, mantenible y optimizada para la gestión de evaluaciones psicolaborales:
+
+* **React (UI basada en Componentes):** Permite modularizar la interfaz en componentes reutilizables (formularios, tablas, tarjetas de candidatos, vistas de evaluador). Esto facilita la escalabilidad, simplifica la integración futura con la API de Spring Boot y garantiza un estado dinámico fluido sin recargar la página.
+* **Vite (Entorno de Desarrollo y Bundler):** Ofrece un entorno de desarrollo ultrarrápido con *Hot Module Replacement* (HMR) instantáneo y tiempos de compilación mínimos. En comparación con herramientas tradicionales como Create React App, Vite optimiza drásticamente la productividad del equipo y genera *builds* de producción ligeros y altamente eficientes.
+* **Tailwind CSS v4 (Estilizado de Alta Velocidad):** Proporciona un marco de trabajo *utility-first* que permite diseñar interfaces corporativas limpias, consistentes y 100% adaptables (*responsive*) sin salir del código React. La versión 4 simplifica la configuración del motor CSS y optimiza el rendimiento final, permitiendo aplicar la identidad visual de AquaChile de forma ágil y profesional.
+
+
 ## Estado actual del desarrollo (MVP Frontend)
 - [x] Inicialización del repositorio y configuración de React + Tailwind v4.
 - [x] Creación de sistema de rutas con React Router.
