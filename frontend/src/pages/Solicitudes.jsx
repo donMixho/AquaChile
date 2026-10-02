@@ -1,7 +1,10 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AQUACHILE_THEME } from '../theme';
 
-function Solicitudes() {
+const Solicitudes = () => {
+  const navigate = useNavigate();
+
   const [solicitudes] = useState([
     {
       id: 1,
@@ -27,55 +30,148 @@ function Solicitudes() {
       estado: 'Finalizada',
       responsable: 'Sofía Castro'
     }
-  ])
+  ]);
 
-  const estadoClasses = {
-    Pendiente: 'bg-yellow-100 text-yellow-800',
-    'En proceso': 'bg-blue-100 text-blue-800',
-    Finalizada: 'bg-green-100 text-green-800'
-  }
+  const getStatusBadge = (estado) => {
+    switch (estado) {
+      case 'Finalizada':
+        return { background: 'rgba(0, 255, 178, 0.15)', color: '#00FFB2', border: '1px solid #00FFB2' };
+      case 'En proceso':
+        return { background: 'rgba(0, 242, 254, 0.15)', color: '#00F2FE', border: '1px solid #00F2FE' };
+      case 'Pendiente':
+      default:
+        return { background: 'rgba(255, 126, 95, 0.15)', color: '#FF7E5F', border: '1px solid #FF7E5F' };
+    }
+  };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-slate-800">Solicitudes de Evaluación</h1>
-        <Link
-          to="/solicitudes/nueva"
-          className="inline-flex items-center justify-center rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-700"
+    <div>
+      {/* Título y Botón Principal Neón */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+        <div>
+          <h1 style={{
+            margin: 0,
+            fontSize: '28px',
+            fontWeight: '800',
+            color: '#FFFFFF',
+            textShadow: AQUACHILE_THEME.textGlow
+          }}>
+            Solicitudes de Evaluación
+          </h1>
+          <p style={{ color: AQUACHILE_THEME.textMuted, margin: '6px 0 0 0', fontSize: '14px' }}>
+            Monitoreo en tiempo real del flujo psicolaboral automatizado.
+          </p>
+        </div>
+
+        <button
+          onClick={() => navigate('/solicitudes/nueva')}
+          style={{
+            background: AQUACHILE_THEME.glowButton,
+            color: '#021120',
+            border: 'none',
+            borderRadius: '10px',
+            padding: '12px 22px',
+            fontWeight: '800',
+            fontSize: '14px',
+            cursor: 'pointer',
+            boxShadow: '0 0 18px rgba(0, 242, 254, 0.45)',
+            transition: 'transform 0.2s'
+          }}
         >
           + Nueva Solicitud
-        </Link>
+        </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Candidato</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Cargo</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Fecha de solicitud</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Estado</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Responsable</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Acciones</th>
+      {/* Tarjeta Glassmorphic con Borde Neón */}
+      <div style={{
+        background: AQUACHILE_THEME.surface,
+        backdropFilter: 'blur(16px)',
+        borderRadius: '14px',
+        border: `1px solid ${AQUACHILE_THEME.surfaceBorder}`,
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
+        overflow: 'hidden'
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{
+              background: 'rgba(0, 242, 254, 0.05)',
+              borderBottom: `1px solid ${AQUACHILE_THEME.surfaceBorder}`,
+              color: AQUACHILE_THEME.primary,
+              fontSize: '13px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
+            }}>
+              <th style={{ padding: '16px 20px' }}>Candidato</th>
+              <th style={{ padding: '16px 20px' }}>Cargo</th>
+              <th style={{ padding: '16px 20px' }}>Fecha</th>
+              <th style={{ padding: '16px 20px' }}>Estado</th>
+              <th style={{ padding: '16px 20px' }}>Responsable</th>
+              <th style={{ padding: '16px 20px', textAlign: 'center' }}>Acciones</th>
             </tr>
           </thead>
-
-          <tbody className="divide-y divide-slate-200 bg-white">
-            {solicitudes.map((solicitud) => (
-              <tr key={solicitud.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 text-sm font-medium text-slate-800">{solicitud.candidato}</td>
-                <td className="px-4 py-3 text-sm text-slate-700">{solicitud.cargo}</td>
-                <td className="px-4 py-3 text-sm text-slate-700">{solicitud.fecha}</td>
-                <td className="px-4 py-3 text-sm">
-                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${estadoClasses[solicitud.estado]}`}>
-                    {solicitud.estado}
+          <tbody>
+            {solicitudes.map((sol) => (
+              <tr key={sol.id} style={{
+                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                fontSize: '14px'
+              }}>
+                <td style={{ padding: '16px 20px', fontWeight: '700', color: '#FFFFFF' }}>
+                  {sol.candidato}
+                </td>
+                <td style={{ padding: '16px 20px', color: AQUACHILE_THEME.textMuted }}>
+                  {sol.cargo}
+                </td>
+                <td style={{ padding: '16px 20px', color: AQUACHILE_THEME.textMuted }}>
+                  {sol.fecha}
+                </td>
+                <td style={{ padding: '16px 20px' }}>
+                  <span style={{
+                    ...getStatusBadge(sol.estado),
+                    padding: '5px 12px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    display: 'inline-block'
+                  }}>
+                    {sol.estado}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-slate-700">{solicitud.responsable}</td>
-                <td className="px-4 py-3 text-sm">
-                  <Link to="/solicitudes/1" className="font-medium text-sky-600 hover:text-sky-700">
-                    Ver Detalle
-                  </Link>
+                <td style={{ padding: '16px 20px', color: AQUACHILE_THEME.textMuted }}>
+                  {sol.responsable}
+                </td>
+                <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                    <Link
+                      to={`/solicitudes/${sol.id}/evaluar`}
+                      style={{
+                        background: AQUACHILE_THEME.glowButton,
+                        color: '#021120',
+                        textDecoration: 'none',
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '800',
+                        boxShadow: '0 0 10px rgba(0, 242, 254, 0.3)'
+                      }}
+                    >
+                      Evaluar
+                    </Link>
+                    <Link
+                      to={`/solicitudes/${sol.id}`}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        color: '#FFFFFF',
+                        textDecoration: 'none',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        border: '1px solid rgba(255, 255, 255, 0.15)'
+                      }}
+                    >
+                      Ver Detalle
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -83,7 +179,7 @@ function Solicitudes() {
         </table>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Solicitudes
+export default Solicitudes;
