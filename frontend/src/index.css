@@ -1,1 +1,113 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 1. Fondo general de la aplicación */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #020F1D;
+  color: #FFFFFF;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 2. SOLUCIÓN A CUADROS BLANCOS: 
+   Fuerza a que cualquier tarjeta, cuadro o contenedor blanco tenga texto oscuro ultra legible */
+.bg-white,
+[style*="background: #ffffff"],
+[style*="background: #FFFFFF"],
+[style*="background-color: #ffffff"],
+[style*="background-color: #FFFFFF"],
+[style*="background: white"],
+[style*="background-color: white"] {
+  color: #1A202C !important; /* Texto negro azulado de alto contraste */
+}
+
+/* Fuerza a que los textos dentro de cuadros blancos sean oscuros y legibles */
+.bg-white *,
+[style*="background: #ffffff"] *,
+[style*="background: #FFFFFF"] *,
+[style*="background-color: #ffffff"] *,
+[style*="background-color: #FFFFFF"] *,
+[style*="background: white"] *,
+[style*="background-color: white"] * {
+  color: #1A202C !important;
+}
+
+/* Mantener visibles los enlaces y botones dentro de cuadros blancos */
+.bg-white a,
+[style*="background: #ffffff"] a,
+[style*="background-color: #FFFFFF"] a {
+  color: #008289 !important;
+}
+
+/* 3. INPUTS Y SELECTS:
+   Hace que todos los campos para escribir tengan fondo oscuro, borde neón y letras blancas brillantes */
+input, 
+select, 
+textarea {
+  background-color: #041B2D !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(0, 242, 254, 0.4) !important;
+  border-radius: 6px;
+}
+
+/* Texto de marcador de posición (placeholder) bien visible */
+input::placeholder,
+textarea::placeholder {
+  color: #8BAAC1 !important;
+}
+
+/* Opciones desplegables dentro de los select */
+select option {
+  background-color: #041B2D !important;
+  color: #FFFFFF !important;
+}
+
+/* Cuando el usuario hace clic o selecciona un campo (Focus) */
+input:focus, 
+select:focus, 
+textarea:focus {
+  outline: none !important;
+  border-color: #00F2FE !important;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.5) !important;
+}
+
+/* Texto seleccionado con el cursor (resaltado) */
+::selection {
+  background-color: #00F2FE;
+  color: #020F1D;
+}
+/* ========================================================
+   REGLA DE MÁXIMA VISIBILIDAD PARA TEXTOS ESCONDIDOS
+   ======================================================== */
+
+/* 1. Ilumina directamente cualquier texto de bienvenida o encabezado secundario */
+p, span, h1, h2, h3, h4, h5, h6, div {
+  /* Si el texto tiene clases viejas de Tailwind oscuras, lo forzamos a color luminoso legible */
+  &.text-gray-800,
+  &.text-gray-700,
+  &.text-gray-600,
+  &.text-slate-800,
+  &.text-slate-700,
+  &.text-neutral-800 {
+    color: #94B4CB !important;
+  }
+}
+
+/* 2. Regla para textos con estilos en línea oscuros sobre el fondo abisal */
+[style*="color: #002B49"],
+[style*="color: #1C2D37"],
+[style*="color: #4A5568"],
+[style*="color: #556677"],
+[style*="color: #2D3748"],
+[style*="color: #1A202C"],
+[style*="color: #111827"] {
+  color: #B4D3E8 !important; /* Azul hielo suave de alto contraste y ultra legible */
+}
+
+/* 3. Resaltado especial para el texto del banner de bienvenida */
+div:has(> p), section, header {
+  color: #E2E8F0;
+}

@@ -1,106 +1,152 @@
 import React, { useState } from 'react';
-// Descomenta la siguiente línea si utilizan react-router-dom en el proyecto
-// import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { AQUACHILE_THEME } from '../theme';
 
 const DetalleEvaluacion = () => {
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
 
-  // 1. Estados principales del formulario
+  // Estados del formulario de evaluación
   const [estado, setEstado] = useState('En proceso');
   const [fecha, setFecha] = useState('');
   const [observaciones, setObservaciones] = useState('');
 
-  // 2. Estados para validación y feedback visual
+  // Estados para validación y alertas
   const [error, setError] = useState('');
   const [exito, setExito] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validación: Evitar envío si faltan datos
+    // Validación de campos obligatorios
     if (!fecha || !observaciones.trim()) {
       setError('Por favor, selecciona una fecha y escribe tus observaciones antes de guardar.');
       setExito(false);
       return;
     }
 
-    // Simulación de guardado exitoso
     setError('');
     setExito(true);
-    
-    // Simula una petición al backend imprimiendo los datos en consola
-    console.log("Datos enviados al backend:", { estado, fecha, observaciones });
+    console.log("Evaluación registrada:", { estado, fecha, observaciones });
 
-    // Oculta el mensaje de éxito después de 3 segundos
+    // Ocultar mensaje tras 3 segundos
     setTimeout(() => setExito(false), 3000);
   };
 
   const handleVolver = () => {
-    // Navegación cruzada (Ajusta la ruta según la configuración del router de su equipo)
-    // navigate('/solicitudes');
-    console.log("Navegando de vuelta a la tabla de solicitudes...");
+    navigate('/solicitudes');
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif' }}>
-      <h2>Detalle de Solicitud de Evaluación (#1)</h2>
+    <div style={{ maxWidth: '680px', margin: '0 auto', fontFamily: 'Segoe UI, sans-serif', color: AQUACHILE_THEME.text }}>
+      
+      {/* Título Principal */}
+      <h2 style={{ color: AQUACHILE_THEME.primary, borderBottom: `2px solid ${AQUACHILE_THEME.secondary}`, paddingBottom: '8px' }}>
+        Detalle de Evaluación Psicolaboral
+      </h2>
 
-      {/* Bloque de contexto extraído del flujo del proyecto */}
-      <div style={{ background: '#f4f4f4', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-        <h3>Datos del Candidato</h3>
-        <p><strong>Nombre:</strong> Juan Pérez</p>
-        <p><strong>Familia de cargo:</strong> Operaciones</p>
-        <p><strong>Cargo:</strong> Analista de Reclutamiento</p>
-        <p><strong>Documento:</strong> <a href="#">Descargar Curriculum Vitae (CV)</a></p>
+      {/* Tarjeta de Información del Candidato */}
+      <div style={{ backgroundColor: AQUACHILE_THEME.surface, padding: '18px', borderRadius: '8px', marginBottom: '20px', borderLeft: `5px solid ${AQUACHILE_THEME.primary}`, boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}>
+        <h3 style={{ margin: '0 0 10px 0', color: AQUACHILE_THEME.primary, fontSize: '16px' }}>Datos de la Solicitud</h3>
+        <p style={{ margin: '4px 0' }}><strong>Candidato:</strong> Juan Pérez González</p>
+        <p style={{ margin: '4px 0' }}><strong>Familia de Cargo:</strong> Operaciones</p>
+        <p style={{ margin: '4px 0' }}><strong>Cargo a Postular:</strong> Analista de Reclutamiento</p>
+        <p style={{ margin: '4px 0' }}>
+          <strong>Curriculum Vitae:</strong> <span style={{ color: AQUACHILE_THEME.secondary, textDecoration: 'underline', cursor: 'pointer' }}>Descargar CV_JuanPerez.pdf</span>
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      {/* Formulario de Evaluación */}
+      <form onSubmit={handleSubmit} style={{ backgroundColor: AQUACHILE_THEME.surface, padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         
         {/* Selector de Estado */}
         <div>
-          <label style={{ fontWeight: 'bold' }}>Estado de Evaluación:</label> <br />
-          <select value={estado} onChange={(e) => setEstado(e.target.value)} style={{ padding: '8px', width: '100%' }}>
+          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '6px', color: AQUACHILE_THEME.primary }}>
+            Estado de la Evaluación:
+          </label>
+          <select 
+            value={estado} 
+            onChange={(e) => setEstado(e.target.value)} 
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #CCD6DD', outline: 'none' }}
+          >
             <option value="En proceso">En proceso</option>
             <option value="Finalizada">Finalizada</option>
           </select>
         </div>
 
-        {/* Input de Fecha */}
+        {/* Fecha de Evaluación */}
         <div>
-          <label style={{ fontWeight: 'bold' }}>Fecha de Evaluación:</label> <br />
+          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '6px', color: AQUACHILE_THEME.primary }}>
+            Fecha de Evaluación:
+          </label>
           <input 
             type="date" 
             value={fecha} 
             onChange={(e) => setFecha(e.target.value)} 
-            style={{ padding: '8px', width: '100%' }}
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #CCD6DD', outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
 
-        {/* Textarea de Observaciones */}
+        {/* Observaciones */}
         <div>
-          <label style={{ fontWeight: 'bold' }}>Observaciones:</label> <br />
+          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '6px', color: AQUACHILE_THEME.primary }}>
+            Observaciones y Conclusiones:
+          </label>
           <textarea 
             rows="4" 
             value={observaciones} 
             onChange={(e) => setObservaciones(e.target.value)} 
-            placeholder="Ingresa las observaciones sobre la evaluación y la entrevista..."
-            style={{ padding: '8px', width: '100%', resize: 'vertical' }}
+            placeholder="Escriba las observaciones del postulante y los resultados preliminares..."
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #CCD6DD', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
           />
         </div>
 
-        {/* Alertas Condicionales */}
-        {error && <div style={{ color: 'red', marginTop: '10px' }}>{error}</div>}
-        {exito && <div style={{ color: 'green', fontWeight: 'bold', marginTop: '10px' }}>¡Evaluación guardada correctamente!</div>}
+        {/* Alertas */}
+        {error && (
+          <div style={{ backgroundColor: '#FDE8E4', color: '#A93B24', padding: '10px', borderRadius: '6px', fontSize: '14px', borderLeft: '4px solid #A93B24' }}>
+            {error}
+          </div>
+        )}
 
-        {/* Botones de Acción */}
-        <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-          <button type="submit" style={{ padding: '10px 15px', background: '#007BFF', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+        {exito && (
+          <div style={{ backgroundColor: '#E3F2DC', color: '#2F6914', padding: '10px', borderRadius: '6px', fontSize: '14px', borderLeft: `4px solid ${AQUACHILE_THEME.accent}` }}>
+            ¡Evaluación guardada exitosamente!
+          </div>
+        )}
+
+        {/* Botones */}
+        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+          <button 
+            type="submit" 
+            style={{ 
+              backgroundColor: AQUACHILE_THEME.secondary, 
+              color: '#FFFFFF', 
+              padding: '10px 20px', 
+              border: 'none', 
+              borderRadius: '6px', 
+              fontWeight: 'bold', 
+              cursor: 'pointer' 
+            }}
+          >
             Guardar Evaluación
           </button>
-          <button type="button" onClick={handleVolver} style={{ padding: '10px 15px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+          
+          <button 
+            type="button" 
+            onClick={handleVolver} 
+            style={{ 
+              backgroundColor: '#6C7A89', 
+              color: '#FFFFFF', 
+              padding: '10px 20px', 
+              border: 'none', 
+              borderRadius: '6px', 
+              fontWeight: 'bold', 
+              cursor: 'pointer' 
+            }}
+          >
             Volver al listado
           </button>
         </div>
+
       </form>
     </div>
   );

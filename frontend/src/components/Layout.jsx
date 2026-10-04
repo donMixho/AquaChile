@@ -1,34 +1,101 @@
-import { Link, Outlet } from 'react-router-dom'
-import logo from '../assets/logo-aquachile.png'
+import React from 'react';
+import { Outlet, Link, useLocation } from 'react-router-dom';
+import { AQUACHILE_THEME } from '../theme';
+import LogoAquaChile from './LogoAquaChile';
 
-export default function Layout() {
+const Layout = () => {
+  const location = useLocation();
+
+  const navLinks = [
+    { name: 'Dashboard', path: '/' },
+    { name: 'Solicitudes', path: '/solicitudes' },
+    { name: 'Candidatos', path: '/candidatos' }
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Barra de navegación */}
-      <nav className="bg-blue-800 text-white py-3 shadow-md">
-        <div className="container mx-auto flex items-center justify-between">
-          <div className="font-bold text-xl tracking-wide min-w-[180px]">
-            AquaChile VcM
-          </div>
+    <div style={{
+      minHeight: '100vh',
+      background: AQUACHILE_THEME.background,
+      color: AQUACHILE_THEME.text,
+      fontFamily: "'Segoe UI', Roboto, sans-serif",
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* Barra de Navegación con Efecto Cristal / Glassmorphism */}
+      <header style={{
+        background: 'rgba(2, 17, 32, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderBottom: `1px solid ${AQUACHILE_THEME.surfaceBorder || 'rgba(0, 242, 254, 0.22)'}`,
+        boxShadow: '0 4px 28px rgba(0, 242, 254, 0.1)',
+        padding: '0 32px',
+        height: '74px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50
+      }}>
+        
+        {/* LOGO AQUACHILE MEJORADO */}
+        <Link to="/" style={{ textDecoration: 'none' }}>
+          <LogoAquaChile />
+        </Link>
 
-          <div className="flex-1 flex justify-center">
-            <div className="bg-white rounded-full w-16 h-16 shadow-md overflow-hidden flex items-center justify-center">
-              <img src={logo} alt="Logo AquaChile" className="w-full h-full object-contain p-1.5" />
-            </div>
-          </div>
+        {/* Links de Navegación */}
+        <nav style={{ display: 'flex', gap: '12px' }}>
+          {navLinks.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.name}
+                to={item.path}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '24px',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  color: isActive ? '#021120' : AQUACHILE_THEME.textMuted || '#94B4CB',
+                  background: isActive
+                    ? (AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)')
+                    : 'rgba(255, 255, 255, 0.04)',
+                  border: isActive ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                  boxShadow: isActive ? '0 0 16px rgba(0, 242, 254, 0.45)' : 'none',
+                  transition: 'all 0.25s ease'
+                }}
+              >
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+      </header>
 
-          <div className="flex gap-6 font-medium min-w-[180px] justify-end">
-            <Link to="/" className="hover:text-blue-200 transition-colors">Dashboard</Link>
-            <Link to="/candidatos" className="hover:text-blue-200 transition-colors">Candidatos</Link>
-            <Link to="/solicitudes" className="hover:text-blue-200 transition-colors">Solicitudes</Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Contenedor dinámico de las vistas */}
-      <main className="container mx-auto p-6 flex-grow">
+      {/* Contenedor Principal */}
+      <main style={{
+        flex: 1,
+        maxWidth: '1200px',
+        width: '100%',
+        margin: '0 auto',
+        padding: '32px 24px'
+      }}>
         <Outlet />
       </main>
+
+      {/* Footer Minimalista */}
+      <footer style={{
+        textAlign: 'center',
+        padding: '18px',
+        fontSize: '12px',
+        color: AQUACHILE_THEME.textMuted || '#94B4CB',
+        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+        background: 'rgba(2, 17, 32, 0.95)'
+      }}>
+        AquaChile S.A. &copy; 2026 • Sistema de Evaluación Psicolaboral Automatizado
+      </footer>
     </div>
-  )
-}
+  );
+};
+
+export default Layout;
