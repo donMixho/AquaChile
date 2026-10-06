@@ -1,49 +1,78 @@
-# Sistema Web para la Gestión de Evaluaciones Psicolaborales - AquaChile
+# AquaChile — MVP Frontend
 
-## Descripción del proyecto
-Producto minimo viable para la asignatura Desarrollo Fullstack II (Proyecto AquaChile). El sistema digitaliza y centraliza la información básica del proceso de evaluación psicolaboral del área de Reclutamiento y Selección de AquaChile.
+## 1. Título y Descripción
 
-## Contexto del problema
-Actualmente, el proceso se administra mediante múltiples herramientas fragmentadas (Forms, Excel, Planner, correos), lo que genera trabajo manual repetitivo y falta de centralización de la información.
+**Proyecto MVP Frontend (Reclutamiento y Selección)** desarrollado con React y Vite, con pruebas automatizadas usando Jasmine y Karma. El MVP presenta una interfaz para apoyar los procesos de reclutamiento, selección y evaluación psicolaboral.
 
-## Estructura del Proyecto
+## 2. Estructura del Proyecto
+
+Las carpetas principales del frontend se organizan así:
+
 ```text
-AquaChile/
-├── frontend/               # Aplicación React con Vite y Tailwind CSS
-│   ├── src/
-│   │   ├── components/     # Componentes reutilizables (Layout, etc.)
-│   │   ├── pages/          # Vistas (Dashboard, Candidatos, Solicitudes, etc.)
-│   │   ├── context/        # Manejo de estados globales
-│   │   ├── services/       # Conexión futura a la API backend
-│   │   └── utils/          # Funciones genéricas de apoyo
-│   └── ...
-├── backend/                # (Pendiente de inicializar) Lógica de negocio y API REST
-└── docs/                   # Documentación adicional del proyecto
-    ├── informe/            # Informes académicos de la asignatura
-    ├── documentacion/      # Anexos, requerimientos y manuales
-    ├── imagenes/           # Capturas de pantalla y diagramas
-    └── otros/              # Material complementario entregado por AquaChile
+frontend/
+├── docs/                         # Documentación técnica, infraestructura y ERS
+├── src/
+│   ├── components/               # Componentes reutilizables de la interfaz (UI)
+│   │   └── __tests__/            # Pruebas unitarias de los componentes
+│   ├── data/                     # Datos simulados para el MVP
+│   └── pages/                    # Vistas principales de la aplicación
+├── docker-compose.yml            # Configuración de la base de datos local
+├── karma.conf.js                 # Configuración de Jasmine y Karma
+└── package.json                  # Dependencias y comandos del frontend
 ```
 
-## 🛠️ Justificación del Stack Tecnológico (Frontend)
+- **`docs/`** reúne documentación técnica del proyecto, especificaciones (ERS) e información de infraestructura, incluido el esquema de la base de datos.
+- **`src/components/`** contiene los componentes reutilizables de la UI.
+- **`src/data/`** contiene los datos simulados del MVP, como `solicitudesMock.js`, que exporta registros en formato de objetos JavaScript.
+- **`src/components/__tests__/`** contiene las pruebas automatizadas de componentes.
 
-La elección de **React**, **Vite** y **Tailwind CSS v4** responde a la necesidad de construir una interfaz moderna, altamente reactiva, mantenible y optimizada para la gestión de evaluaciones psicolaborales:
+## 3. ¿Qué son las Pruebas Unitarias y qué aportan?
 
-* **React (UI basada en Componentes):** Permite modularizar la interfaz en componentes reutilizables (formularios, tablas, tarjetas de candidatos, vistas de evaluador). Esto facilita la escalabilidad, simplifica la integración futura con la API de Spring Boot y garantiza un estado dinámico fluido sin recargar la página.
-* **Vite (Entorno de Desarrollo y Bundler):** Ofrece un entorno de desarrollo ultrarrápido con *Hot Module Replacement* (HMR) instantáneo y tiempos de compilación mínimos. En comparación con herramientas tradicionales como Create React App, Vite optimiza drásticamente la productividad del equipo y genera *builds* de producción ligeros y altamente eficientes.
-* **Tailwind CSS v4 (Estilizado de Alta Velocidad):** Proporciona un marco de trabajo *utility-first* que permite diseñar interfaces corporativas limpias, consistentes y 100% adaptables (*responsive*) sin salir del código React. La versión 4 simplifica la configuración del motor CSS y optimiza el rendimiento final, permitiendo aplicar la identidad visual de AquaChile de forma ágil y profesional.
+Las pruebas unitarias son chequeos automáticos que verifican que cada pieza del software funcione bien por separado.
 
+Aportan seguridad: si modificamos el código, las pruebas nos avisan si rompimos algo sin querer. **No es necesario ejecutarlas todo el tiempo mientras se programa**, pero **sí es obligatorio ejecutarlas antes de hacer un `git commit` o subir cambios al repositorio principal**, para revisar la calidad de los cambios.
 
-## Estado actual del desarrollo (MVP Frontend)
-- [x] Inicialización del repositorio y configuración de React + Tailwind v4.
-- [x] Creación de sistema de rutas con React Router.
-- [x] Vistas del Analista: Dashboard, Listado de Candidatos, Listado de Solicitudes y Formularios.
-- [x] Vistas del Evaluador: Detalle de solicitud y registro de resultados (`DetalleEvaluacion.jsx`).
-- [x] Rediseño del Layout con integración del logo corporativo de AquaChile.
+## 4. Guía de Comandos (Terminal)
 
-![Evidencia Visual](./docs/imagenes/vista-nueva-solicitud.png)
+Abre Git Bash en la raíz del repositorio y entra a la carpeta del frontend. Los comandos de npm deben ejecutarse desde `frontend/`, donde están su `package.json` y sus dependencias:
 
-## Ejecutar el proyecto
+```bash
+cd frontend
+```
+
+Instalar las dependencias base del frontend:
+
+```bash
+npm install
+```
+
+Configurar el entorno de pruebas con Webpack y Babel:
+
+```bash
+npm install --save-dev karma-webpack webpack babel-loader --legacy-peer-deps
+npm install --save-dev ajv@^8.0.0 ajv-keywords@^5.0.0 --legacy-peer-deps
+```
+
+Instalar las herramientas de Testing Library para montar e interactuar con componentes React en el DOM:
+
+```bash
+npm install --save-dev @testing-library/react @testing-library/dom @testing-library/user-event
+```
+
+Ejecutar las pruebas unitarias con Jasmine y Karma:
+
+```bash
+npm test
+```
+
+Levantar la base de datos local PostgreSQL con Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Iniciar Vite y abrir el proyecto en el navegador usando la URL que muestra la terminal:
+
 ```bash
 npm run dev
 ```
