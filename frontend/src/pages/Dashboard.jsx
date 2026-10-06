@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AQUACHILE_THEME } from '../theme';
-import solicitudesData from '../data/solicitudesMock.json';
+import { solicitudesMock } from '../data/solicitudesMock.js';
 
 const Dashboard = () => {
   const [solicitudes, setSolicitudes] = useState([]);
 
   useEffect(() => {
-    setSolicitudes(solicitudesData);
+    setSolicitudes(solicitudesMock);
   }, []);
 
   const totalSolicitudes = solicitudes.length;
