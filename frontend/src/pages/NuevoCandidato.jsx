@@ -1,6 +1,27 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AQUACHILE_THEME } from '../theme';
+
+const formatearRut = (valor) => {
+  const caracteres = valor.toUpperCase().replace(/[^0-9K]/g, '');
+  const tieneVerificador = caracteres.length > 8 || caracteres.endsWith('K');
+  const cuerpo = (tieneVerificador ? caracteres.slice(0, -1) : caracteres)
+    .replace(/\D/g, '')
+    .slice(0, 8);
+  const verificador = tieneVerificador
+    ? caracteres.slice(-1).replace(/[^0-9K]/g, '')
+    : '';
+  const cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+  return verificador
+    ? `${cuerpoFormateado}-${verificador}`
+    : cuerpoFormateado;
+};
+
+const normalizarEmail = (valor) => valor.replace(/\s/g, '').toLowerCase();
+
+const emailValido = (email) =>
+  /^[^@\s]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(email);
 
 const NuevoCandidato = () => {
   const navigate = useNavigate();
@@ -20,15 +41,7 @@ const NuevoCandidato = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // 1. Verificación de espacios en blanco en el email
-    if (formulario.email.includes(' ')) {
-      setErrorEmail('El correo electrónico no puede contener espacios.');
-      return;
-    }
-
-    // 2. Validación de formato de correo
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formulario.email)) {
+    if (!emailValido(formulario.email)) {
       setErrorEmail('Ingresa un correo electrónico con formato válido.');
       return;
     }
@@ -119,7 +132,10 @@ const NuevoCandidato = () => {
                 type="text"
                 required
                 value={formulario.rut}
-                onChange={(e) => setFormulario({ ...formulario, rut: e.target.value })}
+                onChange={(e) => setFormulario({
+                  ...formulario,
+                  rut: formatearRut(e.target.value)
+                })}
                 placeholder="12.345.678-9"
                 style={{
                   width: '100%',
@@ -219,13 +235,13 @@ const NuevoCandidato = () => {
               type="email"
               required
               value={formulario.email}
-              /* Elimina espacios automáticamente al tipear o pegar */
               onChange={(e) => {
-                const sinEspacios = e.target.value.replace(/\s/g, '');
-                setFormulario({ ...formulario, email: sinEspacios });
+                setFormulario({
+                  ...formulario,
+                  email: normalizarEmail(e.target.value)
+                });
                 if (errorEmail) setErrorEmail('');
               }}
-              /* Bloquea directamente la tecla espaciadora */
               onKeyDown={(e) => {
                 if (e.key === ' ' || e.code === 'Space') {
                   e.preventDefault();
