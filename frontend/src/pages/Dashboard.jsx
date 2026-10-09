@@ -1,19 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AQUACHILE_THEME } from '../theme';
-import { solicitudesMock } from '../data/solicitudesMock.js';
+import { obtenerCandidatos } from '../services/candidatosService';
 
 const Dashboard = () => {
-  const [solicitudes, setSolicitudes] = useState([]);
+  const [candidatos, setCandidatos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState('');
 
   useEffect(() => {
-    setSolicitudes(solicitudesMock);
+    let activo = true;
+
+    obtenerCandidatos()
+      .then((datos) => {
+        if (activo) setCandidatos(datos);
+      })
+      .catch((error) => {
+        if (activo) {
+          setErrorCarga(error instanceof Error
+            ? `No se pudieron cargar los candidatos: ${error.message}`
+            : 'No se pudieron cargar los candidatos. Inténtalo nuevamente.');
+        }
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+
+    return () => {
+      activo = false;
+    };
   }, []);
 
-  const totalSolicitudes = solicitudes.length;
-  const enProceso = solicitudes.filter(s => s.estado === 'En Proceso' || s.estado === 'En proceso').length;
-  const finalizadas = solicitudes.filter(s => s.estado === 'Finalizada').length;
-  const pendientes = solicitudes.filter(s => s.estado === 'Pendiente').length;
+  const candidatosConCargo = candidatos.filter((candidato) => candidato.cargo).length;
+  const candidatosConEmail = candidatos.filter((candidato) => candidato.email).length;
+  const candidatosConTelefono = candidatos.filter((candidato) => candidato.telefono).length;
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', fontFamily: "'Segoe UI', Roboto, sans-serif" }}>
@@ -71,10 +90,10 @@ const Dashboard = () => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
         }}>
           <p style={{ color: '#94B4CB', fontSize: '12px', margin: 0, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            TOTAL SOLICITUDES
+            TOTAL CANDIDATOS
           </p>
           <h2 style={{ color: '#FFFFFF', fontSize: '32px', margin: '8px 0 0 0', fontWeight: '800' }}>
-            {totalSolicitudes}
+            {cargando ? '...' : candidatos.length}
           </h2>
         </div>
 
@@ -87,10 +106,10 @@ const Dashboard = () => {
           boxShadow: '0 0 16px rgba(0, 242, 254, 0.2)'
         }}>
           <p style={{ color: '#00F2FE', fontSize: '12px', margin: 0, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            EN PROCESO
+            CON CARGO
           </p>
           <h2 style={{ color: '#00F2FE', fontSize: '32px', margin: '8px 0 0 0', fontWeight: '800' }}>
-            {enProceso}
+            {cargando ? '...' : candidatosConCargo}
           </h2>
         </div>
 
@@ -103,10 +122,10 @@ const Dashboard = () => {
           boxShadow: '0 0 16px rgba(0, 255, 178, 0.2)'
         }}>
           <p style={{ color: '#00FFB2', fontSize: '12px', margin: 0, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            FINALIZADAS
+            CON CORREO
           </p>
           <h2 style={{ color: '#00FFB2', fontSize: '32px', margin: '8px 0 0 0', fontWeight: '800' }}>
-            {finalizadas}
+            {cargando ? '...' : candidatosConEmail}
           </h2>
         </div>
 
@@ -119,16 +138,16 @@ const Dashboard = () => {
           boxShadow: '0 0 16px rgba(255, 126, 95, 0.2)'
         }}>
           <p style={{ color: '#FF7E5F', fontSize: '12px', margin: 0, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            PENDIENTES
+            CON TELÉFONO
           </p>
           <h2 style={{ color: '#FF7E5F', fontSize: '32px', margin: '8px 0 0 0', fontWeight: '800' }}>
-            {pendientes}
+            {cargando ? '...' : candidatosConTelefono}
           </h2>
         </div>
 
       </div>
 
-      {/* TABLA DE SOLICITUDES RECIENTES */}
+      {/* LISTADO DE CANDIDATOS RECIENTES */}
       <div style={{
         background: 'rgba(7, 30, 49, 0.72)',
         backdropFilter: 'blur(16px)',
@@ -139,7 +158,7 @@ const Dashboard = () => {
       }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <h2 style={{ color: '#FFFFFF', fontSize: '18px', margin: 0, fontWeight: '700' }}>
-            Solicitudes Recientes
+            Candidatos Recientes
           </h2>
         </div>
         
@@ -156,44 +175,34 @@ const Dashboard = () => {
               <th style={{ padding: '14px 20px' }}>Candidato</th>
               <th style={{ padding: '14px 20px' }}>Cargo</th>
               <th style={{ padding: '14px 20px' }}>Familia</th>
-              <th style={{ padding: '14px 20px' }}>Estado</th>
+              <th style={{ padding: '14px 20px' }}>Contacto</th>
               <th style={{ padding: '14px 20px', textAlign: 'center' }}>Acción</th>
             </tr>
           </thead>
           <tbody>
-            {solicitudes.map((item) => (
-              <tr key={item.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', fontSize: '14px' }}>
-                <td style={{ padding: '16px 20px', fontWeight: '700', color: '#FFFFFF' }}>{item.candidato}</td>
-                <td style={{ padding: '16px 20px', color: '#B4D3E8' }}>{item.cargo}</td>
-                <td style={{ padding: '16px 20px', color: '#B4D3E8' }}>{item.familiaCargo}</td>
-                <td style={{ padding: '16px 20px' }}>
-                  <span style={{
-                    backgroundColor: item.estado === 'Finalizada' ? 'rgba(0, 255, 178, 0.15)' : (item.estado === 'En Proceso' || item.estado === 'En proceso') ? 'rgba(0, 242, 254, 0.15)' : 'rgba(255, 126, 95, 0.15)',
-                    color: item.estado === 'Finalizada' ? '#00FFB2' : (item.estado === 'En Proceso' || item.estado === 'En proceso') ? '#00F2FE' : '#FF7E5F',
-                    border: `1px solid ${item.estado === 'Finalizada' ? '#00FFB2' : (item.estado === 'En Proceso' || item.estado === 'En proceso') ? '#00F2FE' : '#FF7E5F'}`,
-                    padding: '4px 12px',
-                    borderRadius: '20px',
-                    fontSize: '12px',
-                    fontWeight: '700'
-                  }}>
-                    {item.estado}
-                  </span>
-                </td>
+            {cargando ? (
+              <tr><td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: '#B4D3E8' }}>Cargando candidatos...</td></tr>
+            ) : errorCarga ? (
+              <tr><td colSpan="5" role="alert" style={{ padding: '24px', textAlign: 'center', color: '#FF7B7B' }}>{errorCarga}</td></tr>
+            ) : candidatos.length === 0 ? (
+              <tr><td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: '#B4D3E8' }}>No hay candidatos registrados.</td></tr>
+            ) : candidatos.slice(0, 5).map((candidato) => (
+              <tr key={candidato.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', fontSize: '14px' }}>
+                <td style={{ padding: '16px 20px', fontWeight: '700', color: '#FFFFFF' }}>{candidato.nombre_completo ?? candidato.nombre}</td>
+                <td style={{ padding: '16px 20px', color: '#B4D3E8' }}>{candidato.cargo || '—'}</td>
+                <td style={{ padding: '16px 20px', color: '#B4D3E8' }}>{candidato.familia_cargo ?? candidato.familia ?? '—'}</td>
+                <td style={{ padding: '16px 20px', color: '#B4D3E8' }}>{candidato.email || '—'}</td>
                 <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                  <Link
-                    to={`/solicitudes/${item.id}/evaluar`}
-                    style={{
-                      background: 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
-                      color: '#021120',
-                      padding: '6px 16px',
-                      borderRadius: '6px',
-                      textDecoration: 'none',
-                      fontSize: '12px',
-                      fontWeight: '800',
-                      boxShadow: '0 0 12px rgba(0, 242, 254, 0.35)'
-                    }}
-                  >
-                    Evaluar
+                  <Link to="/candidatos" style={{
+                    background: 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
+                    color: '#021120',
+                    padding: '6px 16px',
+                    borderRadius: '6px',
+                    textDecoration: 'none',
+                    fontSize: '12px',
+                    fontWeight: '800'
+                  }}>
+                    Ver candidatos
                   </Link>
                 </td>
               </tr>

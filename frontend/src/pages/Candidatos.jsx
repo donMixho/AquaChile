@@ -1,44 +1,48 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AQUACHILE_THEME } from '../theme';
+import { obtenerCandidatos } from '../services/candidatosService';
 
 const Candidatos = () => {
   const navigate = useNavigate();
 
-  const [candidatos, setCandidatos] = useState([
-    {
-      id: 1,
-      nombre: 'Valentina Ruiz',
-      rut: '19.823.411-5',
-      cargo: 'Analista de Operaciones',
-      familia: 'Operaciones',
-      email: 'v.ruiz@gmail.com',
-      estado: 'Pendiente'
-    },
-    {
-      id: 2,
-      nombre: 'Mateo Flores',
-      rut: '18.455.902-8',
-      cargo: 'Ingeniero de Proyectos',
-      familia: 'Producción',
-      email: 'mflores@outlook.com',
-      estado: 'En Proceso'
-    },
-    {
-      id: 3,
-      nombre: 'Camila Ortega',
-      rut: '20.114.733-K',
-      cargo: 'Coordinador de Calidad',
-      familia: 'Calidad',
-      email: 'c.ortega@gmail.com',
-      estado: 'Evaluado'
-    }
-  ]);
+  const [candidatos, setCandidatos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState('');
 
   const [modalEditar, setModalEditar] = useState(null);
   const [modalSolicitud, setModalSolicitud] = useState(null);
   const [notificacion, setNotificacion] = useState('');
   const [errorEmail, setErrorEmail] = useState('');
+
+  useEffect(() => {
+    let activo = true;
+
+    obtenerCandidatos()
+      .then((datos) => {
+        if (activo) {
+          setCandidatos(datos.map((candidato) => ({
+            ...candidato,
+            nombre: candidato.nombre_completo ?? candidato.nombre,
+            familia: candidato.familia_cargo ?? candidato.familia
+          })));
+        }
+      })
+      .catch((error) => {
+        if (activo) {
+          setErrorCarga(error instanceof Error
+            ? `No se pudieron cargar los candidatos: ${error.message}`
+            : 'No se pudieron cargar los candidatos. Inténtalo nuevamente.');
+        }
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   // 1. Guardar cambios con validación estricta de correo sin espacios
   const guardarEdicion = (e) => {
@@ -162,7 +166,13 @@ const Candidatos = () => {
             </tr>
           </thead>
           <tbody>
-            {candidatos.map((c) => (
+            {cargando ? (
+              <tr><td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: AQUACHILE_THEME.textMuted }}>Cargando candidatos...</td></tr>
+            ) : errorCarga ? (
+              <tr><td colSpan="5" role="alert" style={{ padding: '24px', textAlign: 'center', color: '#FF7B7B' }}>{errorCarga}</td></tr>
+            ) : candidatos.length === 0 ? (
+              <tr><td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: AQUACHILE_THEME.textMuted }}>No hay candidatos registrados.</td></tr>
+            ) : candidatos.map((c) => (
               <tr key={c.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', fontSize: '14px' }}>
                 <td style={{ padding: '16px 20px', fontWeight: 'bold', color: '#FFFFFF' }}>
                   {c.nombre}

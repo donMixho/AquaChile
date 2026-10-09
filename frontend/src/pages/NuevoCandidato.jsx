@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AQUACHILE_THEME } from '../theme';
+import { crearCandidato } from '../services/candidatosService';
 
 const formatearRut = (valor) => {
   const caracteres = valor.toUpperCase().replace(/[^0-9K]/g, '');
@@ -36,9 +37,11 @@ const NuevoCandidato = () => {
   });
 
   const [errorEmail, setErrorEmail] = useState('');
+  const [errorInsercion, setErrorInsercion] = useState('');
   const [mensajeExito, setMensajeExito] = useState(false);
+  const [guardando, setGuardando] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!emailValido(formulario.email)) {
@@ -47,12 +50,25 @@ const NuevoCandidato = () => {
     }
 
     setErrorEmail('');
-    setMensajeExito(true);
-    console.log("Nuevo candidato registrado:", formulario);
+    setErrorInsercion('');
+    setGuardando(true);
 
-    setTimeout(() => {
-      navigate('/candidatos');
-    }, 1500);
+    try {
+      const formData = formulario;
+      await crearCandidato(formData);
+      setMensajeExito(true);
+      setTimeout(() => {
+        navigate('/candidatos');
+      }, 1500);
+    } catch (error) {
+      setErrorInsercion(
+        error instanceof Error
+          ? `No se pudo registrar el candidato: ${error.message}`
+          : 'No se pudo registrar el candidato. Inténtalo nuevamente.'
+      );
+    } finally {
+      setGuardando(false);
+    }
   };
 
   return (
@@ -94,6 +110,21 @@ const NuevoCandidato = () => {
             textAlign: 'center'
           }}>
             ¡Candidato registrado exitosamente! Redirigiendo...
+          </div>
+        )}
+
+        {errorInsercion && (
+          <div role="alert" style={{
+            background: 'rgba(255, 75, 75, 0.12)',
+            border: '1px solid #FF4B4B',
+            color: '#FF7B7B',
+            padding: '12px',
+            borderRadius: '8px',
+            marginBottom: '18px',
+            fontWeight: 'bold',
+            textAlign: 'center'
+          }}>
+            {errorInsercion}
           </div>
         )}
 
@@ -286,19 +317,21 @@ const NuevoCandidato = () => {
             </button>
             <button
               type="submit"
+              disabled={guardando}
               style={{
                 padding: '10px 24px',
                 borderRadius: '8px',
                 border: 'none',
                 background: AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
                 color: '#021120',
-                cursor: 'pointer',
+                cursor: guardando ? 'wait' : 'pointer',
+                opacity: guardando ? 0.7 : 1,
                 fontWeight: '800',
                 fontSize: '14px',
                 boxShadow: '0 0 14px rgba(0, 242, 254, 0.4)'
               }}
             >
-              Registrar Candidato
+              {guardando ? 'Registrando...' : 'Registrar Candidato'}
             </button>
           </div>
 
