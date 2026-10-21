@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { obtenerCandidatos } from '../services/candidatosService';
 
+const claseTarjeta = 'block no-underline bg-white border border-gray-200 border-t-4 border-t-aqua-orange rounded-xl p-5 shadow-sm hover:shadow-md hover:scale-105 transition-transform cursor-pointer';
+const claseEtiqueta = 'text-xs font-bold uppercase tracking-wider text-aqua-blue m-0';
+
 const Dashboard = () => {
   const [candidatos, setCandidatos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -30,9 +33,13 @@ const Dashboard = () => {
     };
   }, []);
 
-  const candidatosConCargo = candidatos.filter((candidato) => candidato.cargo).length;
-  const candidatosConEmail = candidatos.filter((candidato) => candidato.email).length;
-  const candidatosConTelefono = candidatos.filter((candidato) => candidato.telefono).length;
+  const porFamilia = Object.entries(
+    candidatos.reduce((acc, candidato) => {
+      const familia = candidato.familia_cargo ?? candidato.familia ?? 'Sin definir';
+      acc[familia] = (acc[familia] || 0) + 1;
+      return acc;
+    }, {})
+  ).sort((x, y) => x[0].localeCompare(y[0]));
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', fontFamily: "'Segoe UI', Roboto, sans-serif" }}>
@@ -52,8 +59,7 @@ const Dashboard = () => {
           fontSize: '28px',
           fontWeight: '900',
           margin: 0,
-          letterSpacing: '0.5px',
-          textShadow: '0 0 14px rgba(0, 242, 254, 0.5)'
+          letterSpacing: '0.5px'
         }}>
           Panel de Control - Reclutamiento & Selección
         </h1>
@@ -81,69 +87,24 @@ const Dashboard = () => {
         marginBottom: '32px'
       }}>
         
-        {/* Total */}
-        <div style={{
-          background: 'rgba(7, 30, 49, 0.72)',
-          border: '1px solid rgba(0, 242, 254, 0.3)',
-          borderRadius: '12px',
-          padding: '20px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
-        }}>
-          <p style={{ color: '#94B4CB', fontSize: '12px', margin: 0, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            TOTAL CANDIDATOS
-          </p>
-          <h2 style={{ color: '#FFFFFF', fontSize: '32px', margin: '8px 0 0 0', fontWeight: '800' }}>
+        {/* Total de Solicitudes */}
+        <Link to="/solicitudes" className={claseTarjeta}>
+          <p className={claseEtiqueta}>Total de Solicitudes</p>
+          <h2 className="text-4xl font-extrabold text-aqua-blue mt-2 mb-0">
             {cargando ? '...' : candidatos.length}
           </h2>
-        </div>
+        </Link>
 
-        {/* En Proceso */}
-        <div style={{
-          background: 'rgba(7, 30, 49, 0.72)',
-          border: '1px solid #00F2FE',
-          borderRadius: '12px',
-          padding: '20px',
-          boxShadow: '0 0 16px rgba(0, 242, 254, 0.2)'
-        }}>
-          <p style={{ color: '#00F2FE', fontSize: '12px', margin: 0, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            CON CARGO
-          </p>
-          <h2 style={{ color: '#00F2FE', fontSize: '32px', margin: '8px 0 0 0', fontWeight: '800' }}>
-            {cargando ? '...' : candidatosConCargo}
-          </h2>
-        </div>
-
-        {/* Finalizadas */}
-        <div style={{
-          background: 'rgba(7, 30, 49, 0.72)',
-          border: '1px solid #00FFB2',
-          borderRadius: '12px',
-          padding: '20px',
-          boxShadow: '0 0 16px rgba(0, 255, 178, 0.2)'
-        }}>
-          <p style={{ color: '#00FFB2', fontSize: '12px', margin: 0, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            CON CORREO
-          </p>
-          <h2 style={{ color: '#00FFB2', fontSize: '32px', margin: '8px 0 0 0', fontWeight: '800' }}>
-            {cargando ? '...' : candidatosConEmail}
-          </h2>
-        </div>
-
-        {/* Pendientes */}
-        <div style={{
-          background: 'rgba(7, 30, 49, 0.72)',
-          border: '1px solid #FF7E5F',
-          borderRadius: '12px',
-          padding: '20px',
-          boxShadow: '0 0 16px rgba(255, 126, 95, 0.2)'
-        }}>
-          <p style={{ color: '#FF7E5F', fontSize: '12px', margin: 0, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            CON TELÉFONO
-          </p>
-          <h2 style={{ color: '#FF7E5F', fontSize: '32px', margin: '8px 0 0 0', fontWeight: '800' }}>
-            {cargando ? '...' : candidatosConTelefono}
-          </h2>
-        </div>
+        {/* Una tarjeta por familia de cargo */}
+        {!cargando && porFamilia.map(([familia, cantidad]) => (
+          <Link key={familia} to="/candidatos" className={claseTarjeta}>
+            <p className={claseEtiqueta}>{familia}</p>
+            <h2 className="text-4xl font-extrabold text-aqua-orange mt-2 mb-0">{cantidad}</h2>
+            <p className="text-xs text-gray-500 mt-1 mb-0">
+              {cantidad === 1 ? 'candidato' : 'candidatos'}
+            </p>
+          </Link>
+        ))}
 
       </div>
 
@@ -193,7 +154,7 @@ const Dashboard = () => {
                 <td style={{ padding: '16px 20px', color: '#B4D3E8' }}>{candidato.familia_cargo ?? candidato.familia ?? '—'}</td>
                 <td style={{ padding: '16px 20px', color: '#B4D3E8' }}>{candidato.email || '—'}</td>
                 <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                  <Link to="/candidatos" style={{
+                  <Link to="/candidatos" className="inline-block transition-all duration-200 hover:shadow-md hover:-translate-y-0.5" style={{
                     background: 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
                     color: '#021120',
                     padding: '6px 16px',

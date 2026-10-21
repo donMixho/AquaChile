@@ -105,34 +105,31 @@ const Candidatos = () => {
       )}
 
       {/* Encabezado */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="bg-white px-6 py-4 rounded-lg shadow-sm border border-gray-100 mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{
-            color: '#FFFFFF',
+          <h1 className="text-aqua-blue font-bold" style={{
             fontSize: '28px',
-            fontWeight: '800',
-            margin: 0,
-            textShadow: AQUACHILE_THEME.textGlow || '0 0 12px rgba(0,242,254,0.45)'
+            margin: 0
           }}>
             Gestión de Candidatos
           </h1>
-          <p style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', margin: '4px 0 0 0', fontSize: '14px' }}>
+          <p style={{ color: '#6b7280', margin: '4px 0 0 0', fontSize: '14px' }}>
             Base de postulantes para procesos de evaluación y selección AquaChile.
           </p>
         </div>
 
         <button
           onClick={() => navigate('/candidatos/nuevo')}
+          className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
           style={{
-            background: AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
-            color: '#021120',
+            background: '#f26522',
+            color: '#FFFFFF',
             border: 'none',
             borderRadius: '10px',
             padding: '12px 20px',
             fontWeight: '800',
             fontSize: '14px',
-            cursor: 'pointer',
-            boxShadow: '0 0 16px rgba(0, 242, 254, 0.4)'
+            cursor: 'pointer'
           }}
         >
           + Nuevo Candidato
@@ -162,16 +159,17 @@ const Candidatos = () => {
               <th style={{ padding: '16px 20px' }}>RUT</th>
               <th style={{ padding: '16px 20px' }}>Cargo / Área</th>
               <th style={{ padding: '16px 20px' }}>Contacto</th>
+              <th style={{ padding: '16px 20px' }}>CV</th>
               <th style={{ padding: '16px 20px', textAlign: 'center' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {cargando ? (
-              <tr><td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: AQUACHILE_THEME.textMuted }}>Cargando candidatos...</td></tr>
+              <tr><td colSpan="6" style={{ padding: '24px', textAlign: 'center', color: AQUACHILE_THEME.textMuted }}>Cargando candidatos...</td></tr>
             ) : errorCarga ? (
-              <tr><td colSpan="5" role="alert" style={{ padding: '24px', textAlign: 'center', color: '#FF7B7B' }}>{errorCarga}</td></tr>
+              <tr><td colSpan="6" role="alert" style={{ padding: '24px', textAlign: 'center', color: '#FF7B7B' }}>{errorCarga}</td></tr>
             ) : candidatos.length === 0 ? (
-              <tr><td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: AQUACHILE_THEME.textMuted }}>No hay candidatos registrados.</td></tr>
+              <tr><td colSpan="6" style={{ padding: '24px', textAlign: 'center', color: AQUACHILE_THEME.textMuted }}>No hay candidatos registrados.</td></tr>
             ) : candidatos.map((c) => (
               <tr key={c.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', fontSize: '14px' }}>
                 <td style={{ padding: '16px 20px', fontWeight: 'bold', color: '#FFFFFF' }}>
@@ -183,7 +181,31 @@ const Candidatos = () => {
                   <small style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB' }}>{c.familia}</small>
                 </td>
                 <td style={{ padding: '16px 20px', color: AQUACHILE_THEME.textMuted || '#94B4CB' }}>{c.email}</td>
-                
+
+                <td style={{ padding: '16px 20px' }}>
+                  {c.cv_url ? (
+                    <a
+                      href={c.cv_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                      style={{
+                        border: '1px solid #f26522',
+                        color: '#f26522',
+                        borderRadius: '6px',
+                        padding: '6px 14px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        textDecoration: 'none'
+                      }}
+                    >
+                      Ver CV
+                    </a>
+                  ) : (
+                    <span style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', fontSize: '12px' }}>Sin adjunto</span>
+                  )}
+                </td>
+
                 <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                     
