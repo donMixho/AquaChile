@@ -2,7 +2,7 @@
 
 ## 1. Descripción general
 
-Este proyecto es el frontend del MVP de reclutamiento y selección de AquaChile. Está desarrollado con React + Vite y utiliza una estructura de vistas, componentes reutilizables y datos mock para simular el flujo de candidatos, solicitudes, evaluaciones y dashboard operativo.
+Este proyecto es el frontend del MVP de reclutamiento y selección de AquaChile. Está desarrollado con React + Vite y se conecta a **Supabase** (PostgreSQL) para la gestión de candidatos. Las solicitudes y evaluaciones aún usan datos mock.
 
 El objetivo principal es apoyar el proceso de gestión de postulantes, desde la creación de candidatos hasta la evaluación y seguimiento de solicitudes.
 
@@ -16,10 +16,13 @@ frontend/
 ├── .gitignore                 # Archivos ignorados por Git
 ├── README.md                  # Documentación del frontend
 ├── dist/                      # Build generado por Vite
-├── docker-compose.yml          # Base de datos local (si aplica en entorno de desarrollo)
-├── docs/                      # Documentación técnica y especificaciones del proyecto
+├── .env                       # Credenciales de Supabase (no versionado)
+├── docker-compose.yml          # PostgreSQL local opcional (usa docs/schema.sql)
+├── docs/                      # Documentación técnica, esquema SQL e imágenes
 │   ├── DOCUMENTO_COBERTURA_TESTING.md
-│   └── HOJA_DE_RUTA_Y_ESPECIFICACIONES_TECNICAS.md
+│   ├── HOJA_DE_RUTA_Y_ESPECIFICACIONES_TECNICAS.md
+│   ├── schema.sql
+│   └── imagenes/
 ├── eslint.config.js           # Reglas de linting
 ├── index.html                 # Entrada principal del app
 ├── karma.conf.js              # Configuración de Karma + Jasmine
@@ -35,7 +38,7 @@ frontend/
 │   │   ├── __tests__/
 │   │   ├── Layout.jsx
 │   │   └── LogoAquaChile.jsx
-│   ├── context/               # Contextos de estado global (si se usan)
+│   ├── context/               # Contextos de estado global (carpeta vacía por ahora)
 │   ├── data/                  # Datos mock / simulados del proyecto
 │   │   └── solicitudesMock.js
 │   ├── index.css              # Estilos base globales
@@ -48,13 +51,13 @@ frontend/
 │   │   ├── NuevaSolicitud.jsx
 │   │   ├── NuevoCandidato.jsx
 │   │   └── Solicitudes.jsx
-│   ├── services/              # Lógica de servicios / integración
+│   ├── services/              # Integración con Supabase
+│   │   ├── supabaseClient.js
+│   │   └── candidatosService.js
 │   ├── theme.js               # Paleta y tokens visuales del proyecto
-│   ├── utils/                 # Utilidades y helpers reutilizables
-│   └── ...
+│   └── utils/                 # Utilidades (carpeta vacía por ahora)
 ├── tailwind.config.js         # Configuración de Tailwind
-├── vite.config.js             # Configuración de Vite
-└── .
+└── vite.config.js             # Configuración de Vite
 ```
 
 ### Descripción de carpetas clave
@@ -62,12 +65,28 @@ frontend/
 - `docs/`: documentación técnica del proyecto, especificaciones funcionales y criterios de testing.
 - `src/pages/`: pantallas principales del flujo de reclutamiento y selección.
 - `src/components/`: componentes reutilizables y pruebas unitarias relacionadas.
-- `src/data/`: datos mock para demo del MVP, como postulantes y solicitudes.
-- `src/services/`: preparación para integración con APIs o servicios externos.
-- `src/utils/`: funciones auxiliares para validaciones y reutilización.
+- `src/data/`: datos mock de solicitudes (también usados en las pruebas).
+- `src/services/`: cliente de Supabase y funciones `obtenerCandidatos` / `crearCandidato`.
 - `src/App.jsx`: rutas principales del sistema.
 
-## 3. Restricciones y validaciones del formulario de candidatos
+### Rutas
+
+`/` (Dashboard), `/candidatos`, `/candidatos/nuevo`, `/solicitudes`, `/solicitudes/nueva`, `/solicitudes/:id`, `/solicitudes/:id/evaluar`.
+
+## 3. Integración con Supabase
+
+Los candidatos se leen y crean en la tabla `candidatos` de Supabase (campos: `nombre_completo`, `rut`, `cargo`, `familia_cargo`, `email`, `telefono`, `created_at`). Las vistas Dashboard, Candidatos, Solicitudes y Nuevo Candidato consumen `candidatosService.js`.
+
+Crea `frontend/.env` con tus credenciales (el archivo está en `.gitignore`):
+
+```env
+VITE_SUPABASE_URL=https://<tu-proyecto>.supabase.co
+VITE_SUPABASE_ANON_KEY=<tu-anon-key>
+```
+
+> Nota: `docs/schema.sql` (usado por Docker) está desactualizado respecto a Supabase: no incluye `cargo`/`familia_cargo` en `candidatos` y usa `creado_en` en lugar de `created_at`.
+
+## 4. Restricciones y validaciones del formulario de candidatos
 
 El formulario de registro y edición de candidatos tiene las siguientes reglas funcionales:
 
@@ -106,7 +125,7 @@ El selector incluye estas opciones:
 
 La edición de un candidato reutiliza la misma lógica de validación de correo, con restricción adicional de que no puede haber espacios en blanco en el email.
 
-## 4. Guía de comandos
+## 5. Guía de comandos
 
 Ejecuta estos comandos desde la carpeta `frontend/`:
 
@@ -151,7 +170,7 @@ Esto ejecuta la configuración de Karma + Jasmine configurada en `karma.conf.js`
 npm run preview
 ```
 
-### Levantar entorno local con Docker (si se usa la base de datos local)
+### Levantar PostgreSQL local con Docker (opcional, no usado por la app)
 
 ```bash
 docker compose up -d
@@ -163,23 +182,24 @@ docker compose up -d
 docker compose down
 ```
 
-## 5. Pruebas y buenas prácticas
+## 6. Pruebas y buenas prácticas
 
 - Las pruebas unitarias son una capa de validación para prevenir regresiones.
 - Se recomienda ejecutarlas antes de hacer commit o subir cambios.
 - Si se altera un componente o un formulario, verificar también los casos de validación de email, formato de RUT y navegación entre rutas.
 
-## 6. Tecnologías principales
+## 7. Tecnologías principales
 
 - React 19
 - Vite 8
 - React Router
 - ESLint
-- Karma + Jasmine
+- Supabase (`@supabase/supabase-js`)
+- Karma + Jasmine + Testing Library
 - Tailwind CSS
 - Docker Compose
 
-## 7. Flujo de trabajo recomendado
+## 8. Flujo de trabajo recomendado
 
 ```bash
 cd frontend
