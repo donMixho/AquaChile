@@ -105,127 +105,97 @@ const Candidatos = () => {
       )}
 
       {/* Encabezado */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="bg-white px-6 py-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 style={{
-            color: '#FFFFFF',
+          <h1 className="text-aqua-blue font-bold" style={{
             fontSize: '28px',
-            fontWeight: '800',
-            margin: 0,
-            textShadow: AQUACHILE_THEME.textGlow || '0 0 12px rgba(0,242,254,0.45)'
+            margin: 0
           }}>
             Gestión de Candidatos
           </h1>
-          <p style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', margin: '4px 0 0 0', fontSize: '14px' }}>
+          <p style={{ color: '#6b7280', margin: '4px 0 0 0', fontSize: '14px' }}>
             Base de postulantes para procesos de evaluación y selección AquaChile.
           </p>
         </div>
 
         <button
           onClick={() => navigate('/candidatos/nuevo')}
+          className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
           style={{
-            background: AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
-            color: '#021120',
+            background: '#f26522',
+            color: '#FFFFFF',
             border: 'none',
             borderRadius: '10px',
             padding: '12px 20px',
             fontWeight: '800',
             fontSize: '14px',
-            cursor: 'pointer',
-            boxShadow: '0 0 16px rgba(0, 242, 254, 0.4)'
+            cursor: 'pointer'
           }}
         >
           + Nuevo Candidato
         </button>
       </div>
 
-      {/* Tabla Glassmorphic */}
-      <div style={{
-        background: AQUACHILE_THEME.surface || 'rgba(7, 30, 49, 0.72)',
-        backdropFilter: 'blur(16px)',
-        borderRadius: '14px',
-        border: `1px solid ${AQUACHILE_THEME.surfaceBorder || 'rgba(0, 242, 254, 0.22)'}`,
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
-        overflow: 'hidden'
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+      {/* Tabla (mismo estilo que Solicitudes) */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+        <table className="w-full min-w-[760px] border-collapse text-left">
           <thead>
-            <tr style={{
-              background: 'rgba(0, 242, 254, 0.06)',
-              borderBottom: `1px solid ${AQUACHILE_THEME.surfaceBorder || 'rgba(0, 242, 254, 0.22)'}`,
-              color: AQUACHILE_THEME.primary || '#00F2FE',
-              fontSize: '13px',
-              textTransform: 'uppercase',
-              letterSpacing: '1px'
-            }}>
-              <th style={{ padding: '16px 20px' }}>Candidato</th>
-              <th style={{ padding: '16px 20px' }}>RUT</th>
-              <th style={{ padding: '16px 20px' }}>Cargo / Área</th>
-              <th style={{ padding: '16px 20px' }}>Contacto</th>
-              <th style={{ padding: '16px 20px', textAlign: 'center' }}>Acciones</th>
+            <tr className="bg-aqua-light border-b border-gray-200 text-aqua-blue text-xs uppercase tracking-wider">
+              <th className="px-5 py-4">Candidato</th>
+              <th className="px-5 py-4">RUT</th>
+              <th className="px-5 py-4">Cargo / Área</th>
+              <th className="px-5 py-4">Contacto</th>
+              <th className="px-5 py-4">CV</th>
+              <th className="px-5 py-4 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {cargando ? (
-              <tr><td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: AQUACHILE_THEME.textMuted }}>Cargando candidatos...</td></tr>
+              <tr><td colSpan="6" className="p-6 text-center text-gray-500">Cargando candidatos...</td></tr>
             ) : errorCarga ? (
-              <tr><td colSpan="5" role="alert" style={{ padding: '24px', textAlign: 'center', color: '#FF7B7B' }}>{errorCarga}</td></tr>
+              <tr><td colSpan="6" role="alert" className="p-6 text-center text-red-700">{errorCarga}</td></tr>
             ) : candidatos.length === 0 ? (
-              <tr><td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: AQUACHILE_THEME.textMuted }}>No hay candidatos registrados.</td></tr>
+              <tr><td colSpan="6" className="p-6 text-center text-gray-500">No hay candidatos registrados.</td></tr>
             ) : candidatos.map((c) => (
-              <tr key={c.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', fontSize: '14px' }}>
-                <td style={{ padding: '16px 20px', fontWeight: 'bold', color: '#FFFFFF' }}>
-                  {c.nombre}
+              <tr key={c.id} className="border-b border-gray-100 text-sm">
+                <td className="px-5 py-4 font-bold text-aqua-blue">{c.nombre}</td>
+                <td className="px-5 py-4 text-gray-700">{c.rut}</td>
+                <td className="px-5 py-4 text-gray-700">
+                  <div>{c.cargo}</div>
+                  <small className="text-gray-500">{c.familia}</small>
                 </td>
-                <td style={{ padding: '16px 20px', color: AQUACHILE_THEME.textMuted || '#94B4CB' }}>{c.rut}</td>
-                <td style={{ padding: '16px 20px' }}>
-                  <div style={{ fontWeight: '600', color: AQUACHILE_THEME.primary || '#00F2FE' }}>{c.cargo}</div>
-                  <small style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB' }}>{c.familia}</small>
+                <td className="px-5 py-4 text-gray-700">{c.email}</td>
+                <td className="px-5 py-4">
+                  {c.cv_url ? (
+                    <a
+                      href={c.cv_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block no-underline border border-aqua-orange text-aqua-orange rounded-md px-3 py-1.5 text-xs font-bold transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                    >
+                      Ver CV
+                    </a>
+                  ) : (
+                    <span className="text-gray-500 text-xs">Sin adjunto</span>
+                  )}
                 </td>
-                <td style={{ padding: '16px 20px', color: AQUACHILE_THEME.textMuted || '#94B4CB' }}>{c.email}</td>
-                
-                <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                    
+                <td className="px-5 py-4">
+                  <div className="flex gap-2 justify-center">
                     <button
                       onClick={() => {
                         setErrorEmail('');
                         setModalEditar({ ...c });
                       }}
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        color: '#FFFFFF',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        borderRadius: '6px',
-                        padding: '6px 14px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        cursor: 'pointer'
-                      }}
+                      className="bg-white border border-gray-300 text-aqua-blue rounded-md px-3 py-1.5 text-xs font-bold cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
                     >
                       Editar
                     </button>
-
                     <button
                       onClick={() => setModalSolicitud(c)}
-                      style={{
-                        background: AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
-                        color: '#021120',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '6px 14px',
-                        fontSize: '12px',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: '0 0 10px rgba(0, 242, 254, 0.3)'
-                      }}
+                      className="bg-aqua-orange text-white border-none rounded-md px-3 py-1.5 text-xs font-bold cursor-pointer whitespace-nowrap transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
                     >
-                      <span>⚡</span> Solicitar Eval.
+                      ⚡ Solicitar Eval.
                     </button>
-
                   </div>
                 </td>
               </tr>

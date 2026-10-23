@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AQUACHILE_THEME } from '../theme';
 import { crearCandidato } from '../services/candidatosService';
 
 const formatearRut = (valor) => {
@@ -21,6 +20,9 @@ const formatearRut = (valor) => {
 
 const normalizarEmail = (valor) => valor.replace(/\s/g, '').toLowerCase();
 
+const TAMANO_MAX_CV = 5 * 1024 * 1024;
+const EXTENSIONES_CV = ['pdf', 'doc', 'docx'];
+
 const emailValido = (email) =>
   /^[^@\s]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(email);
 
@@ -36,10 +38,30 @@ const NuevoCandidato = () => {
     telefono: ''
   });
 
+  const [archivoCv, setArchivoCv] = useState(null);
+  const [errorCv, setErrorCv] = useState('');
   const [errorEmail, setErrorEmail] = useState('');
   const [errorInsercion, setErrorInsercion] = useState('');
   const [mensajeExito, setMensajeExito] = useState(false);
   const [guardando, setGuardando] = useState(false);
+
+  const handleCvChange = (e) => {
+    const archivo = e.target.files[0] ?? null;
+    const extension = archivo?.name.split('.').pop().toLowerCase();
+
+    if (archivo && !EXTENSIONES_CV.includes(extension)) {
+      setErrorCv('Formato no permitido. Usa PDF, DOC o DOCX.');
+      setArchivoCv(null);
+      e.target.value = '';
+    } else if (archivo && archivo.size > TAMANO_MAX_CV) {
+      setErrorCv('El archivo supera el máximo de 5 MB.');
+      setArchivoCv(null);
+      e.target.value = '';
+    } else {
+      setErrorCv('');
+      setArchivoCv(archivo);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,7 +77,7 @@ const NuevoCandidato = () => {
 
     try {
       const formData = formulario;
-      await crearCandidato(formData);
+      await crearCandidato(formData, archivoCv);
       setMensajeExito(true);
       setTimeout(() => {
         navigate('/candidatos');
@@ -76,33 +98,31 @@ const NuevoCandidato = () => {
       
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{
-          color: '#FFFFFF',
+          color: '#5a6b81',
           fontSize: '28px',
           fontWeight: '800',
-          margin: 0,
-          textShadow: AQUACHILE_THEME.textGlow || '0 0 12px rgba(0,242,254,0.45)'
+          margin: 0
         }}>
           Registrar Nuevo Candidato
         </h1>
-        <p style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', margin: '6px 0 0 0', fontSize: '14px' }}>
+        <p style={{ color: '#6b7280', margin: '6px 0 0 0', fontSize: '14px' }}>
           Ingresa los antecedentes del postulante para el proceso de selección.
         </p>
       </div>
 
       <div style={{
-        background: AQUACHILE_THEME.surface || 'rgba(7, 30, 49, 0.72)',
-        backdropFilter: 'blur(16px)',
+        background: '#FFFFFF',
         borderRadius: '14px',
-        border: `1px solid ${AQUACHILE_THEME.surfaceBorder || 'rgba(0, 242, 254, 0.22)'}`,
+        border: '1px solid #e5e7eb',
         padding: '28px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)'
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
       }}>
         
         {mensajeExito && (
           <div style={{
-            background: 'rgba(0, 255, 178, 0.15)',
-            border: '1px solid #00FFB2',
-            color: '#00FFB2',
+            background: '#ecfdf5',
+            border: '1px solid #6ee7b7',
+            color: '#047857',
             padding: '12px',
             borderRadius: '8px',
             marginBottom: '18px',
@@ -115,9 +135,9 @@ const NuevoCandidato = () => {
 
         {errorInsercion && (
           <div role="alert" style={{
-            background: 'rgba(255, 75, 75, 0.12)',
-            border: '1px solid #FF4B4B',
-            color: '#FF7B7B',
+            background: '#fef2f2',
+            border: '1px solid #fca5a5',
+            color: '#b91c1c',
             padding: '12px',
             borderRadius: '8px',
             marginBottom: '18px',
@@ -131,7 +151,7 @@ const NuevoCandidato = () => {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
           <div>
-            <label style={{ display: 'block', color: '#E2E8F0', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+            <label style={{ display: 'block', color: '#5a6b81', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
               Nombre Completo:
             </label>
             <input
@@ -144,9 +164,9 @@ const NuevoCandidato = () => {
                 width: '100%',
                 padding: '10px 14px',
                 borderRadius: '8px',
-                border: '1px solid rgba(0, 242, 254, 0.3)',
-                background: '#020F1D',
-                color: '#FFFFFF',
+                border: '1px solid #d1d5db',
+                background: '#FFFFFF',
+                color: '#1f2937',
                 fontSize: '14px',
                 outline: 'none',
                 boxSizing: 'border-box'
@@ -156,7 +176,7 @@ const NuevoCandidato = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-              <label style={{ display: 'block', color: '#E2E8F0', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+              <label style={{ display: 'block', color: '#5a6b81', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
                 RUT:
               </label>
               <input
@@ -172,9 +192,9 @@ const NuevoCandidato = () => {
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(0, 242, 254, 0.3)',
-                  background: '#020F1D',
-                  color: '#FFFFFF',
+                  border: '1px solid #d1d5db',
+                  background: '#FFFFFF',
+                  color: '#1f2937',
                   fontSize: '14px',
                   outline: 'none',
                   boxSizing: 'border-box'
@@ -183,7 +203,7 @@ const NuevoCandidato = () => {
             </div>
 
             <div>
-              <label style={{ display: 'block', color: '#E2E8F0', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+              <label style={{ display: 'block', color: '#5a6b81', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
                 Teléfono:
               </label>
               <input
@@ -195,9 +215,9 @@ const NuevoCandidato = () => {
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(0, 242, 254, 0.3)',
-                  background: '#020F1D',
-                  color: '#FFFFFF',
+                  border: '1px solid #d1d5db',
+                  background: '#FFFFFF',
+                  color: '#1f2937',
                   fontSize: '14px',
                   outline: 'none',
                   boxSizing: 'border-box'
@@ -208,7 +228,7 @@ const NuevoCandidato = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-              <label style={{ display: 'block', color: '#E2E8F0', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+              <label style={{ display: 'block', color: '#5a6b81', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
                 Cargo a Postular:
               </label>
               <input
@@ -221,9 +241,9 @@ const NuevoCandidato = () => {
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(0, 242, 254, 0.3)',
-                  background: '#020F1D',
-                  color: '#FFFFFF',
+                  border: '1px solid #d1d5db',
+                  background: '#FFFFFF',
+                  color: '#1f2937',
                   fontSize: '14px',
                   outline: 'none',
                   boxSizing: 'border-box'
@@ -232,7 +252,7 @@ const NuevoCandidato = () => {
             </div>
 
             <div>
-              <label style={{ display: 'block', color: '#E2E8F0', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+              <label style={{ display: 'block', color: '#5a6b81', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
                 Familia de Cargo:
               </label>
               <select
@@ -242,9 +262,9 @@ const NuevoCandidato = () => {
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(0, 242, 254, 0.3)',
-                  background: '#020F1D',
-                  color: '#FFFFFF',
+                  border: '1px solid #d1d5db',
+                  background: '#FFFFFF',
+                  color: '#1f2937',
                   fontSize: '14px',
                   outline: 'none',
                   boxSizing: 'border-box'
@@ -259,7 +279,7 @@ const NuevoCandidato = () => {
           </div>
 
           <div>
-            <label style={{ display: 'block', color: '#E2E8F0', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+            <label style={{ display: 'block', color: '#5a6b81', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
               Correo Electrónico (sin espacios):
             </label>
             <input
@@ -283,17 +303,47 @@ const NuevoCandidato = () => {
                 width: '100%',
                 padding: '10px 14px',
                 borderRadius: '8px',
-                border: errorEmail ? '1px solid #FF4B4B' : '1px solid rgba(0, 242, 254, 0.3)',
-                background: '#020F1D',
-                color: '#FFFFFF',
+                border: errorEmail ? '1px solid #b91c1c' : '1px solid #d1d5db',
+                background: '#FFFFFF',
+                color: '#1f2937',
                 fontSize: '14px',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
             />
             {errorEmail && (
-              <span style={{ color: '#FF7B7B', fontSize: '12px', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
+              <span style={{ color: '#b91c1c', fontSize: '12px', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
                 {errorEmail}
+              </span>
+            )}
+          </div>
+
+          <div>
+            <label style={{ display: 'block', color: '#5a6b81', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+              Currículum Vitae (opcional):
+            </label>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={handleCvChange}
+              className="file:mr-3 file:rounded-md file:border file:border-aqua-orange file:bg-transparent file:px-3 file:py-1 file:text-sm file:text-aqua-orange file:cursor-pointer"
+              style={{
+                width: '100%',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: errorCv ? '1px solid #b91c1c' : '1px solid #d1d5db',
+                background: '#FFFFFF',
+                color: '#1f2937',
+                fontSize: '14px',
+                boxSizing: 'border-box'
+              }}
+            />
+            <span style={{ color: '#6b7280', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+              PDF, DOC o DOCX. Máximo 5 MB.
+            </span>
+            {errorCv && (
+              <span style={{ color: '#b91c1c', fontSize: '12px', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
+                {errorCv}
               </span>
             )}
           </div>
@@ -302,12 +352,13 @@ const NuevoCandidato = () => {
             <button
               type="button"
               onClick={() => navigate('/candidatos')}
+              className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
               style={{
                 padding: '10px 18px',
                 borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#FFFFFF',
+                border: '1px solid #f26522',
+                background: 'transparent',
+                color: '#f26522',
                 cursor: 'pointer',
                 fontWeight: '600',
                 fontSize: '14px'
@@ -318,17 +369,17 @@ const NuevoCandidato = () => {
             <button
               type="submit"
               disabled={guardando}
+              className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
               style={{
                 padding: '10px 24px',
                 borderRadius: '8px',
                 border: 'none',
-                background: AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
-                color: '#021120',
+                background: '#f26522',
+                color: '#FFFFFF',
                 cursor: guardando ? 'wait' : 'pointer',
                 opacity: guardando ? 0.7 : 1,
                 fontWeight: '800',
-                fontSize: '14px',
-                boxShadow: '0 0 14px rgba(0, 242, 254, 0.4)'
+                fontSize: '14px'
               }}
             >
               {guardando ? 'Registrando...' : 'Registrar Candidato'}

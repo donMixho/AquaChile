@@ -52,13 +52,13 @@ function NuevaSolicitud() {
         <div className="mt-6 flex justify-end gap-3">
           <Link
             to="/solicitudes"
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-lg border border-aqua-orange bg-transparent px-4 py-2 text-sm font-medium text-aqua-orange transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
           >
             Cancelar
           </Link>
           <button
             type="submit"
-            className="inline-flex items-center justify-center rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-700"
+            className="inline-flex items-center justify-center rounded-lg bg-aqua-orange px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
           >
             Crear Solicitud
           </button>

@@ -18,4 +18,12 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // Pruebas Jasmine: globals de Jasmine y sin la regla de fast refresh
+    files: ['**/__tests__/**/*.{js,jsx}', 'src/test/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.jasmine },
+    },
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])
