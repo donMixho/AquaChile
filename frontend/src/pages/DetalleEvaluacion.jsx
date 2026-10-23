@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AQUACHILE_THEME } from '../theme';
+import Alerta from '../components/Alerta';
 
 const DetalleEvaluacion = () => {
   const navigate = useNavigate();
@@ -60,10 +61,11 @@ const DetalleEvaluacion = () => {
         
         {/* Selector de Estado */}
         <div>
-          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '6px', color: AQUACHILE_THEME.primary }}>
+          <label htmlFor="estado" style={{ fontWeight: 'bold', display: 'block', marginBottom: '6px', color: AQUACHILE_THEME.primary }}>
             Estado de la Evaluación:
           </label>
           <select 
+            id="estado"
             value={estado} 
             onChange={(e) => setEstado(e.target.value)} 
             style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #CCD6DD', outline: 'none' }}
@@ -75,11 +77,12 @@ const DetalleEvaluacion = () => {
 
         {/* Fecha de Evaluación */}
         <div>
-          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '6px', color: AQUACHILE_THEME.primary }}>
+          <label htmlFor="fecha" style={{ fontWeight: 'bold', display: 'block', marginBottom: '6px', color: AQUACHILE_THEME.primary }}>
             Fecha de Evaluación:
           </label>
           <input 
             type="date" 
+            id="fecha"
             value={fecha} 
             onChange={(e) => setFecha(e.target.value)} 
             style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #CCD6DD', outline: 'none', boxSizing: 'border-box' }}
@@ -88,10 +91,11 @@ const DetalleEvaluacion = () => {
 
         {/* Observaciones */}
         <div>
-          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '6px', color: AQUACHILE_THEME.primary }}>
+          <label htmlFor="observaciones" style={{ fontWeight: 'bold', display: 'block', marginBottom: '6px', color: AQUACHILE_THEME.primary }}>
             Observaciones y Conclusiones:
           </label>
           <textarea 
+            id="observaciones"
             rows="4" 
             value={observaciones} 
             onChange={(e) => setObservaciones(e.target.value)} 
@@ -101,20 +105,12 @@ const DetalleEvaluacion = () => {
         </div>
 
         {/* Alertas */}
-        {error && (
-          <div style={{ backgroundColor: '#FDE8E4', color: '#A93B24', padding: '10px', borderRadius: '6px', fontSize: '14px', borderLeft: '4px solid #A93B24' }}>
-            {error}
-          </div>
-        )}
+        {error && <Alerta tipo="error">{error}</Alerta>}
 
-        {exito && (
-          <div style={{ backgroundColor: '#E3F2DC', color: '#2F6914', padding: '10px', borderRadius: '6px', fontSize: '14px', borderLeft: `4px solid ${AQUACHILE_THEME.accent}` }}>
-            ¡Evaluación guardada exitosamente!
-          </div>
-        )}
+        {exito && <Alerta tipo="exito">¡Evaluación guardada exitosamente!</Alerta>}
 
         {/* Botones */}
-        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px' }}>
           <button 
             type="submit" 
             style={{ 

@@ -1,4 +1,3 @@
-import React from 'react';
 
 const LogoAquaChile = ({ size = 'medium' }) => {
   const isSmall = size === 'small';

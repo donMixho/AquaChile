@@ -54,7 +54,7 @@ const Solicitudes = () => {
   return (
     <div>
       {/* Título y Botón Principal Neón */}
-      <div className="bg-white px-6 py-4 rounded-lg shadow-sm border border-gray-100 mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="bg-white px-6 py-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-aqua-blue font-bold" style={{
             margin: 0,
@@ -86,7 +86,7 @@ const Solicitudes = () => {
       </div>
 
       {/* Filtros */}
-      <div className="flex justify-end items-center gap-3 mb-3">
+      <div className="flex flex-wrap justify-start md:justify-end items-center gap-3 mb-3">
         <select
           aria-label="Filtrar por familia de cargo"
           value={filtroFamilia}
@@ -133,8 +133,8 @@ const Solicitudes = () => {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <table className="w-full border-collapse text-left">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+        <table className="w-full min-w-[640px] border-collapse text-left">
           <thead>
             <tr className="bg-aqua-light border-b border-gray-200 text-aqua-blue text-xs uppercase tracking-wider">
               <th className="px-5 py-4">Candidato</th>
