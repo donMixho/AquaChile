@@ -1,10 +1,54 @@
 import { supabase } from './supabaseClient';
 
+export const ESTADOS_CANDIDATO = ['Pendiente', 'En proceso', 'Apto', 'No apto'];
+
+// Lleva el estado guardado (columna `estado`, o `estado_resultado` si viniera de una unión)
+// a uno de los cuatro valores. Sin dato, o con un texto desconocido, cuenta como Pendiente.
+export const normalizarEstado = (candidato) => {
+  const texto = String(candidato?.estado_resultado ?? candidato?.estado ?? '').toLowerCase();
+  if (/no apto|rechaz/.test(texto)) return 'No apto';
+  if (/apto|aprobad|finalizad/.test(texto)) return 'Apto';
+  if (/proceso/.test(texto)) return 'En proceso';
+  return 'Pendiente';
+};
+
+// select('*') ya incluye `estado` cuando la columna existe (ver docs/migracion_estado_candidatos.sql).
 export const obtenerCandidatos = async () => {
   const { data, error } = await supabase
     .from('candidatos')
     .select('*')
     .order('created_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+export const obtenerCandidatoPorId = async (id) => {
+  const { data, error } = await supabase.from('candidatos').select('*').eq('id', id).single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+// UPDATE de la columna `estado`. Con .single() un UPDATE que no afecta filas (id inexistente o
+// bloqueado por RLS) falla en vez de parecer exitoso.
+export const actualizarEstadoCandidato = async (id, nuevoEstado) => {
+  if (!ESTADOS_CANDIDATO.includes(nuevoEstado)) {
+    throw new Error(`Estado no válido: ${nuevoEstado}`);
+  }
+
+  const { data, error } = await supabase
+    .from('candidatos')
+    .update({ estado: nuevoEstado })
+    .eq('id', id)
+    .select()
+    .single();
 
   if (error) {
     throw error;

@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { obtenerCandidatos } from '../services/candidatosService';
+import { AuthContext, ROLES_RRHH } from '../context/AuthContext';
+import BotonIcono from '../components/BotonIcono';
+import { IconoEvaluar, IconoFiltro, IconoVer } from '../components/Iconos';
 
 const Solicitudes = () => {
   const navigate = useNavigate();
+  // Sin AuthProvider (pruebas) se muestra el enlace; con sesión, solo a los roles que pueden evaluar.
+  const auth = useContext(AuthContext);
+  const puedeEvaluar = !auth || ROLES_RRHH.includes(auth.rol);
 
   const [candidatos, setCandidatos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -49,6 +55,8 @@ const Solicitudes = () => {
     (!fechaHasta || fechaSolicitud(c) <= fechaHasta)
   );
 
+  const nombre = (c) => c.nombre_completo ?? c.nombre;
+
   const claseFiltro = 'bg-white border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-800 focus:border-aqua-orange';
 
   return (
@@ -87,6 +95,9 @@ const Solicitudes = () => {
 
       {/* Filtros */}
       <div className="flex flex-wrap justify-start md:justify-end items-center gap-3 mb-3">
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-aqua-blue">
+          <IconoFiltro className="w-4 h-4" /> Filtros
+        </span>
         <select
           aria-label="Filtrar por familia de cargo"
           value={filtroFamilia}
@@ -142,21 +153,22 @@ const Solicitudes = () => {
               <th className="px-5 py-4">Cargo / Familia</th>
               <th className="px-5 py-4">Correo</th>
               <th className="px-5 py-4">Fecha solicitud</th>
+              <th className="px-5 py-4 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {cargando ? (
-              <tr><td colSpan="5" className="p-6 text-center text-gray-500">Cargando candidatos...</td></tr>
+              <tr><td colSpan="6" className="p-6 text-center text-gray-500">Cargando candidatos...</td></tr>
             ) : errorCarga ? (
-              <tr><td colSpan="5" role="alert" className="p-6 text-center text-red-700">{errorCarga}</td></tr>
+              <tr><td colSpan="6" role="alert" className="p-6 text-center text-red-700">{errorCarga}</td></tr>
             ) : candidatosFiltrados.length === 0 ? (
-              <tr><td colSpan="5" className="p-6 text-center text-gray-500">
+              <tr><td colSpan="6" className="p-6 text-center text-gray-500">
                 {candidatos.length === 0 ? 'No hay candidatos registrados.' : 'Ninguna solicitud coincide con los filtros.'}
               </td></tr>
             ) : candidatosFiltrados.map((candidato) => (
               <tr key={candidato.id} className="border-b border-gray-100 text-sm">
                 <td className="px-5 py-4 font-bold text-aqua-blue">
-                  {candidato.nombre_completo ?? candidato.nombre}
+                  {nombre(candidato)}
                 </td>
                 <td className="px-5 py-4 text-gray-700">{candidato.rut}</td>
                 <td className="px-5 py-4 text-gray-700">
@@ -165,6 +177,24 @@ const Solicitudes = () => {
                 </td>
                 <td className="px-5 py-4 text-gray-700">{candidato.email || '—'}</td>
                 <td className="px-5 py-4 text-gray-700">{fechaSolicitud(candidato) || '—'}</td>
+                <td className="px-5 py-4">
+                  <div className="flex gap-1 justify-center">
+                    <BotonIcono
+                      icono={IconoVer}
+                      etiqueta={`Ver detalle de la solicitud de ${nombre(candidato)}`}
+                      tono="gris"
+                      to={`/solicitudes/${candidato.id}`}
+                    />
+                    {puedeEvaluar && (
+                      <BotonIcono
+                        icono={IconoEvaluar}
+                        etiqueta={`Evaluar a ${nombre(candidato)}`}
+                        tono="naranja"
+                        to={`/solicitudes/${candidato.id}/evaluar`}
+                      />
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

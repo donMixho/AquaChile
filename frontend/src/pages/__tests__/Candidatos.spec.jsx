@@ -33,7 +33,7 @@ describe('Candidatos', () => {
     simularConsulta({ data: candidatosFixture });
     const vista = renderConRouter(<Candidatos />);
     await screen.findByText('Carlos Valenzuela');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Editar' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /^Editar candidato/ })[0]);
     return vista;
   };
 

@@ -1,7 +1,23 @@
 import { useEffect, useState } from 'react';
-import { obtenerCandidatos } from '../services/candidatosService';
+import { ESTADOS_CANDIDATO, normalizarEstado, obtenerCandidatos } from '../services/candidatosService';
 import MetricCard from '../components/MetricCard';
+import BarrasHorizontales from '../components/BarrasHorizontales';
 import Alerta from '../components/Alerta';
+
+// Color de cada estado en el gráfico; el orden lo da ESTADOS_CANDIDATO (avance del proceso).
+const COLOR_ESTADO = {
+  Pendiente: 'bg-aqua-orange',
+  'En proceso': 'bg-aqua-blue',
+  Apto: 'bg-green-600',
+  'No apto': 'bg-red-600'
+};
+
+const contarPor = (lista, clave) =>
+  lista.reduce((acc, item) => {
+    const k = clave(item);
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
 
 const Dashboard = () => {
   const [candidatos, setCandidatos] = useState([]);
@@ -31,80 +47,65 @@ const Dashboard = () => {
     };
   }, []);
 
-  const porFamilia = Object.entries(
-    candidatos.reduce((acc, candidato) => {
-      const familia = candidato.familia_cargo ?? candidato.familia ?? 'Sin definir';
-      acc[familia] = (acc[familia] || 0) + 1;
-      return acc;
-    }, {})
-  ).sort((x, y) => x[0].localeCompare(y[0]));
+  const familias = Object.entries(
+    contarPor(candidatos, (c) => c.familia_cargo ?? c.familia ?? 'Sin definir')
+  )
+    .map(([etiqueta, valor]) => ({ etiqueta, valor }))
+    .sort((a, b) => b.valor - a.valor || a.etiqueta.localeCompare(b.etiqueta));
+
+  const porEstado = contarPor(candidatos, normalizarEstado);
+  const estados = ESTADOS_CANDIDATO.map((etiqueta) => ({
+    etiqueta,
+    valor: porEstado[etiqueta] ?? 0,
+    color: COLOR_ESTADO[etiqueta]
+  }));
+  const cifra = (valor) => (cargando ? '...' : valor);
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', fontFamily: "'Segoe UI', Roboto, sans-serif" }}>
-      
-      {/* ENCABEZADO Y BIENVENIDA CON MÁXIMA CLARIDAD */}
-      <div style={{
-        background: 'rgba(7, 30, 49, 0.75)',
-        backdropFilter: 'blur(14px)',
-        border: '1px solid rgba(0, 242, 254, 0.25)',
-        borderRadius: '14px',
-        padding: '20px',
-        marginBottom: '28px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-      }}>
-        <h1 style={{
-          color: '#FFFFFF',
-          fontSize: '28px',
-          fontWeight: '900',
-          margin: 0,
-          letterSpacing: '0.5px'
-        }}>
-          Panel de Control - Reclutamiento & Selección
-        </h1>
-        
-        {/* Frase de Bienvenida: AHORA BLANCA, LUMINOSA Y ULTRA LEGIBLE */}
-        <p style={{
-          color: '#FFFFFF',
-          fontSize: '16px',
-          fontWeight: '600',
-          margin: '10px 0 0 0',
-          letterSpacing: '0.3px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          <span style={{ color: '#00F2FE' }}>●</span> Bienvenido al Sistema de Gestión de Evaluaciones Psicolaborales.
+    <div className="flex flex-col gap-6">
+      <header>
+        <h1 className="text-2xl md:text-3xl font-extrabold text-aqua-dark m-0">Resumen de Reclutamiento</h1>
+        <p className="text-sm text-gray-500 mt-1 mb-0">
+          Postulantes por familia de cargo y estado de sus evaluaciones.
         </p>
-      </div>
+      </header>
 
-      {/* TARJETAS DE MÉTRICAS */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '20px',
-        marginBottom: '32px'
-      }}>
-        
-        <MetricCard
-          titulo="Total de Solicitudes"
-          valor={cargando ? '...' : candidatos.length}
-          to="/solicitudes"
-        />
-
-        {!cargando && porFamilia.map(([familia, cantidad]) => (
-          <MetricCard
-            key={familia}
-            titulo={familia}
-            valor={cantidad}
-            to="/candidatos"
-            detalle={cantidad === 1 ? 'candidato' : 'candidatos'}
-            colorValor="text-aqua-orange"
-          />
-        ))}
-
-      </div>
       {errorCarga && <Alerta tipo="error">{errorCarga}</Alerta>}
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <MetricCard titulo="Total de Solicitudes" valor={cifra(candidatos.length)} to="/solicitudes" />
+        <MetricCard
+          titulo="Pendientes"
+          valor={cifra(porEstado.Pendiente ?? 0)}
+          to="/solicitudes"
+          detalle="sin evaluar"
+          colorValor="text-aqua-orange"
+        />
+        <MetricCard
+          titulo="Aptos"
+          valor={cifra(porEstado.Apto ?? 0)}
+          to="/solicitudes"
+          detalle="evaluación favorable"
+          colorValor="text-green-600"
+        />
+      </div>
+
+      {!cargando && !errorCarga && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <BarrasHorizontales
+            titulo="Postulantes por familia de cargo"
+            descripcion="Permite ver en qué áreas se concentra la demanda."
+            datos={familias.map((f) => ({ ...f, color: 'bg-aqua-blue' }))}
+            vacio="Aún no hay candidatos registrados."
+          />
+          <BarrasHorizontales
+            titulo="Registros por estado"
+            descripcion="Compara los pendientes con los evaluados."
+            datos={estados}
+            vacio="Aún no hay candidatos registrados."
+          />
+        </div>
+      )}
     </div>
   );
 };
