@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import LogoAquaChile from './LogoAquaChile';
+import { AuthContext, ROLES_RRHH } from '../context/AuthContext';
 
+// `roles` limita qué rol ve el enlace; sin `roles` lo ven todos.
 const navLinks = [
-  { name: 'Dashboard', path: '/' },
+  { name: 'Inicio', path: '/' },
   { name: 'Solicitudes', path: '/solicitudes' },
-  { name: 'Candidatos', path: '/candidatos' }
+  { name: 'Candidatos', path: '/candidatos', roles: ROLES_RRHH }
 ];
 
 const NavItem = ({ item, activo, onClick }) => (
@@ -26,13 +28,26 @@ const NavItem = ({ item, activo, onClick }) => (
 const Layout = () => {
   const location = useLocation();
   const [menuAbierto, setMenuAbierto] = useState(false);
+  // Opcional: sin AuthProvider (p. ej. en pruebas) se muestran todos los enlaces y no hay botón de salida.
+  const auth = useContext(AuthContext);
+  const enlaces = navLinks.filter((l) => !l.roles || !auth || l.roles.includes(auth.rol));
+
+  const botonSalir = auth && (
+    <button
+      type="button"
+      onClick={() => auth.signOut()}
+      className="px-4 py-2 rounded-full text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/10 bg-transparent border border-white/20 cursor-pointer"
+    >
+      Cerrar sesión
+    </button>
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-aqua-light text-aqua-blue font-sans">
       <header className="sticky top-0 z-50 bg-aqua-dark text-white border-b-2 border-aqua-orange shadow-md">
         <div className="min-h-[74px] px-4 md:px-8 flex items-center justify-between">
-          <Link to="/" className="no-underline">
-            <LogoAquaChile />
+          <Link to="/" aria-label="AquaChile - Inicio" className="flex items-center no-underline">
+            <LogoAquaChile sobreOscuro />
           </Link>
 
           <button
@@ -46,15 +61,16 @@ const Layout = () => {
           </button>
 
           <nav aria-label="Navegación principal" className="hidden md:flex gap-3">
-            {navLinks.map((item) => (
+            {enlaces.map((item) => (
               <NavItem key={item.name} item={item} activo={location.pathname === item.path} />
             ))}
+            {botonSalir}
           </nav>
         </div>
 
         {menuAbierto && (
           <nav aria-label="Navegación móvil" className="md:hidden flex flex-col gap-1 px-4 pb-4">
-            {navLinks.map((item) => (
+            {enlaces.map((item) => (
               <NavItem
                 key={item.name}
                 item={item}
@@ -62,6 +78,7 @@ const Layout = () => {
                 onClick={() => setMenuAbierto(false)}
               />
             ))}
+            {botonSalir}
           </nav>
         )}
       </header>

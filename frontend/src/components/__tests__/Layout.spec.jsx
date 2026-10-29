@@ -22,6 +22,7 @@ describe('Layout', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Navegación principal', hidden: true });
     expect(nav.querySelectorAll('a').length).toBe(3);
+    expect(nav.querySelector('a').textContent).toBe('Inicio');
     expect(screen.getByText('contenido-home')).toBeTruthy();
   });
 

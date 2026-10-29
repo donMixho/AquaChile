@@ -10,7 +10,7 @@ describe('Dashboard', () => {
     renderConRouter(<Dashboard />);
 
     expect(
-      screen.getByRole('heading', { name: 'Panel de Control - Reclutamiento & Selección' })
+      screen.getByRole('heading', { name: 'Resumen de Reclutamiento' })
     ).toBeTruthy();
     await waitFor(() => screen.getByText('Total de Solicitudes'));
   });
@@ -19,18 +19,19 @@ describe('Dashboard', () => {
     simularConsulta({ data: candidatosFixture });
     renderConRouter(<Dashboard />);
 
-    expect(screen.getByRole('heading', { level: 2, name: '...' })).toBeTruthy();
-    await waitForElementToBeRemoved(() => screen.queryByRole('heading', { level: 2, name: '...' }));
+    expect(screen.getAllByRole('heading', { level: 2, name: '...' }).length).toBe(3);
+    await waitForElementToBeRemoved(() => screen.queryAllByRole('heading', { level: 2, name: '...' })[0]);
   });
 
-  it('3. Calcula el total de solicitudes y las métricas por familia desde el mock.', async () => {
+  it('3. Calcula el total y grafica los postulantes por familia de cargo.', async () => {
     simularConsulta({ data: candidatosFixture });
     renderConRouter(<Dashboard />);
 
-    expect(await screen.findByRole('heading', { level: 2, name: '3' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: '2' })).toBeTruthy(); // Operaciones
-    expect(screen.getByText('Producción', { selector: 'p' })).toBeTruthy();
-    expect(screen.getByText('candidato')).toBeTruthy(); // singular para Producción
+    // Total de solicitudes y Pendientes (ningún candidato trae estado) valen 3.
+    expect((await screen.findAllByRole('heading', { level: 2, name: '3' })).length).toBe(2);
+    const valor = (nombre) => screen.getByRole('progressbar', { name: nombre }).getAttribute('aria-valuenow');
+    expect(valor('Operaciones')).toBe('2');
+    expect(valor('Producción')).toBe('1');
   });
 
   it('4. No muestra la tabla de candidatos recientes.', async () => {
@@ -55,5 +56,30 @@ describe('Dashboard', () => {
 
     const enlace = (await screen.findByText('Total de Solicitudes')).closest('a');
     expect(enlace.getAttribute('href')).toBe('/solicitudes');
+  });
+
+  it('7. Clasifica los registros por estado en el gráfico.', async () => {
+    simularConsulta({
+      data: [
+        { ...candidatosFixture[0], estado: 'Finalizada', estado_resultado: 'Apto' },
+        { ...candidatosFixture[1], estado: 'En proceso' },
+        { ...candidatosFixture[2], estado_resultado: 'No apto' }
+      ]
+    });
+    renderConRouter(<Dashboard />);
+
+    await screen.findByRole('progressbar', { name: 'Apto' });
+    const valor = (nombre) => screen.getByRole('progressbar', { name: nombre }).getAttribute('aria-valuenow');
+    expect(valor('Apto')).toBe('1');
+    expect(valor('En proceso')).toBe('1');
+    expect(valor('No apto')).toBe('1');
+    expect(valor('Pendiente')).toBe('0');
+  });
+
+  it('8. Sin candidatos muestra el mensaje vacío en ambos gráficos.', async () => {
+    simularConsulta({ data: [] });
+    renderConRouter(<Dashboard />);
+
+    expect((await screen.findAllByText('Aún no hay candidatos registrados.')).length).toBe(2);
   });
 });

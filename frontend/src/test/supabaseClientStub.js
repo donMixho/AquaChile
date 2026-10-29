@@ -4,6 +4,12 @@ export const supabase = {
   from: () => {
     throw new Error('supabase.from no fue simulado en esta prueba');
   },
+  auth: {
+    getSession: () => Promise.resolve({ data: { session: null } }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+    signInWithPassword: () => Promise.reject(new Error('supabase.auth no fue simulado en esta prueba')),
+    signOut: () => Promise.resolve({ error: null })
+  },
   storage: {
     from: () => {
       throw new Error('supabase.storage.from no fue simulado en esta prueba');

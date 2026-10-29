@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AQUACHILE_THEME } from '../theme';
 import { obtenerCandidatos } from '../services/candidatosService';
+import BotonIcono from '../components/BotonIcono';
+import { IconoEditar, IconoEvaluar, IconoVer } from '../components/Iconos';
 
 const Candidatos = () => {
   const navigate = useNavigate();
@@ -167,35 +169,28 @@ const Candidatos = () => {
                 <td className="px-5 py-4 text-gray-700">{c.email}</td>
                 <td className="px-5 py-4">
                   {c.cv_url ? (
-                    <a
-                      href={c.cv_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block no-underline border border-aqua-orange text-aqua-orange rounded-md px-3 py-1.5 text-xs font-bold transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-                    >
-                      Ver CV
-                    </a>
+                    <BotonIcono icono={IconoVer} etiqueta={`Ver CV de ${c.nombre}`} tono="gris" href={c.cv_url} />
                   ) : (
                     <span className="text-gray-500 text-xs">Sin adjunto</span>
                   )}
                 </td>
                 <td className="px-5 py-4">
-                  <div className="flex gap-2 justify-center">
-                    <button
+                  <div className="flex gap-1 justify-center">
+                    <BotonIcono
+                      icono={IconoEditar}
+                      etiqueta={`Editar candidato ${c.nombre}`}
+                      tono="azul"
                       onClick={() => {
                         setErrorEmail('');
                         setModalEditar({ ...c });
                       }}
-                      className="bg-white border border-gray-300 text-aqua-blue rounded-md px-3 py-1.5 text-xs font-bold cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-                    >
-                      Editar
-                    </button>
-                    <button
+                    />
+                    <BotonIcono
+                      icono={IconoEvaluar}
+                      etiqueta={`Solicitar evaluación de ${c.nombre}`}
+                      tono="naranja"
                       onClick={() => setModalSolicitud(c)}
-                      className="bg-aqua-orange text-white border-none rounded-md px-3 py-1.5 text-xs font-bold cursor-pointer whitespace-nowrap transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-                    >
-                      ⚡ Solicitar Eval.
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>
