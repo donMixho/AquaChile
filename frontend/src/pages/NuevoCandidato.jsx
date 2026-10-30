@@ -18,6 +18,24 @@ const formatearRut = (valor) => {
     : cuerpoFormateado;
 };
 
+// Valida largo y dígito verificador (módulo 11) de un RUT ya formateado o sin formato.
+const rutValido = (rut) => {
+  const limpio = rut.replace(/[.\-\s]/g, '').toUpperCase();
+  if (!/^\d{7,8}[0-9K]$/.test(limpio)) return false;
+
+  const cuerpo = limpio.slice(0, -1);
+  let suma = 0;
+  let multiplicador = 2;
+  for (let i = cuerpo.length - 1; i >= 0; i -= 1) {
+    suma += Number(cuerpo[i]) * multiplicador;
+    multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
+  }
+  const resto = 11 - (suma % 11);
+  const esperado = resto === 11 ? '0' : resto === 10 ? 'K' : String(resto);
+
+  return limpio.slice(-1) === esperado;
+};
+
 const normalizarEmail = (valor) => valor.replace(/\s/g, '').toLowerCase();
 
 const TAMANO_MAX_CV = 5 * 1024 * 1024;
@@ -41,6 +59,7 @@ const NuevoCandidato = () => {
   const [archivoCv, setArchivoCv] = useState(null);
   const [errorCv, setErrorCv] = useState('');
   const [errorEmail, setErrorEmail] = useState('');
+  const [errorRut, setErrorRut] = useState('');
   const [errorInsercion, setErrorInsercion] = useState('');
   const [mensajeExito, setMensajeExito] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -66,12 +85,12 @@ const NuevoCandidato = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!emailValido(formulario.email)) {
-      setErrorEmail('Ingresa un correo electrónico con formato válido.');
-      return;
-    }
+    const rutOk = rutValido(formulario.rut);
+    const emailOk = emailValido(formulario.email);
+    setErrorRut(rutOk ? '' : 'El RUT no es válido. Revisa el número y el dígito verificador.');
+    setErrorEmail(emailOk ? '' : 'Ingresa un correo electrónico con formato válido.');
+    if (!rutOk || !emailOk) return;
 
-    setErrorEmail('');
     setErrorInsercion('');
     setGuardando(true);
 
@@ -119,7 +138,7 @@ const NuevoCandidato = () => {
       }}>
         
         {mensajeExito && (
-          <div style={{
+          <div role="status" style={{
             background: '#ecfdf5',
             border: '1px solid #6ee7b7',
             color: '#047857',
@@ -183,16 +202,16 @@ const NuevoCandidato = () => {
                 type="text"
                 required
                 value={formulario.rut}
-                onChange={(e) => setFormulario({
-                  ...formulario,
-                  rut: formatearRut(e.target.value)
-                })}
+                onChange={(e) => {
+                  setFormulario({ ...formulario, rut: formatearRut(e.target.value) });
+                  if (errorRut) setErrorRut('');
+                }}
                 placeholder="12.345.678-9"
                 style={{
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid #d1d5db',
+                  border: errorRut ? '1px solid #b91c1c' : '1px solid #d1d5db',
                   background: '#FFFFFF',
                   color: '#1f2937',
                   fontSize: '14px',
@@ -200,6 +219,11 @@ const NuevoCandidato = () => {
                   boxSizing: 'border-box'
                 }}
               />
+              {errorRut && (
+                <span role="alert" style={{ color: '#b91c1c', fontSize: '12px', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
+                  {errorRut}
+                </span>
+              )}
             </div>
 
             <div>
@@ -312,7 +336,7 @@ const NuevoCandidato = () => {
               }}
             />
             {errorEmail && (
-              <span style={{ color: '#b91c1c', fontSize: '12px', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
+              <span role="alert" style={{ color: '#b91c1c', fontSize: '12px', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
                 {errorEmail}
               </span>
             )}

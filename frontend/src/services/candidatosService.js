@@ -36,25 +36,97 @@ export const obtenerCandidatoPorId = async (id) => {
   return data;
 };
 
-// UPDATE de la columna `estado`. Con .single() un UPDATE que no afecta filas (id inexistente o
-// bloqueado por RLS) falla en vez de parecer exitoso.
-export const actualizarEstadoCandidato = async (id, nuevoEstado) => {
-  if (!ESTADOS_CANDIDATO.includes(nuevoEstado)) {
-    throw new Error(`Estado no válido: ${nuevoEstado}`);
-  }
+// Códigos de error que devuelve Supabase cuando una política de seguridad (RLS) bloquea el UPDATE:
+// - 42501: PostgreSQL rechaza la operación por permisos o por una política WITH CHECK.
+// - PGRST116: el UPDATE no afectó ninguna fila (RLS sin política de UPDATE/SELECT o id inexistente).
+const CODIGO_SIN_PERMISO = '42501';
+const CODIGO_SIN_FILAS = 'PGRST116';
 
+const traducirErrorDeActualizacion = (error) => {
+  if (error.code === CODIGO_SIN_PERMISO) {
+    return new Error('Tu usuario no tiene permiso para modificar candidatos (política de seguridad de la base de datos).');
+  }
+  if (error.code === CODIGO_SIN_FILAS) {
+    return new Error('No se modificó ningún registro. Revisa que exista y que tengas permiso para editarlo.');
+  }
+  return error; // red u otros: se propaga tal cual
+};
+
+// UPDATE por id compartido por las funciones de edición. Con .select().single() un UPDATE que no
+// cambia nada (RLS o id inexistente) falla en vez de parecer exitoso.
+const actualizarPorId = async (id, cambios) => {
   const { data, error } = await supabase
     .from('candidatos')
-    .update({ estado: nuevoEstado })
+    .update(cambios)
     .eq('id', id)
     .select()
     .single();
 
   if (error) {
-    throw error;
+    throw traducirErrorDeActualizacion(error);
   }
 
   return data;
+};
+
+export const actualizarEstadoCandidato = async (id, nuevoEstado) => {
+  if (!ESTADOS_CANDIDATO.includes(nuevoEstado)) {
+    throw new Error(`Estado no válido: ${nuevoEstado}`);
+  }
+
+  return actualizarPorId(id, { estado: nuevoEstado });
+};
+
+// Campos editables (nombre en el formulario -> columna de la tabla). Cualquier otro se ignora,
+// así un objeto de la UI con id, estado o cv_url no puede sobrescribir esas columnas.
+const COLUMNAS_EDITABLES = {
+  nombre: 'nombre_completo',
+  nombre_completo: 'nombre_completo',
+  cargo: 'cargo',
+  email: 'email',
+  telefono: 'telefono',
+  familia: 'familia_cargo',
+  familia_cargo: 'familia_cargo'
+};
+
+export const actualizarCandidato = async (id, datosActualizados) => {
+  const cambios = {};
+  Object.entries(datosActualizados ?? {}).forEach(([campo, valor]) => {
+    const columna = COLUMNAS_EDITABLES[campo];
+    if (columna && valor !== undefined) cambios[columna] = valor;
+  });
+
+  if (Object.keys(cambios).length === 0) {
+    throw new Error('No hay datos para actualizar.');
+  }
+
+  return actualizarPorId(id, cambios);
+};
+
+const CODIGO_SIN_PERMISO_ELIMINAR = '42501';
+const CODIGO_CON_REGISTROS_ASOCIADOS = '23503'; // violación de clave foránea
+
+// Con RLS, un DELETE que ninguna política permite NO devuelve error: simplemente borra cero filas.
+// Por eso se pide la fila eliminada (.select) y se falla si no hay ninguna.
+// Ojo: el CV subido a Storage no se borra; solo se elimina el registro de la tabla.
+export const eliminarCandidato = async (id) => {
+  const { data, error } = await supabase.from('candidatos').delete().eq('id', id).select('id');
+
+  if (error) {
+    if (error.code === CODIGO_SIN_PERMISO_ELIMINAR) {
+      throw new Error('Tu usuario no tiene permiso para eliminar candidatos (política de seguridad de la base de datos).');
+    }
+    if (error.code === CODIGO_CON_REGISTROS_ASOCIADOS) {
+      throw new Error('No se puede eliminar: el candidato tiene registros asociados (solicitudes o evaluaciones).');
+    }
+    throw error;
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('No se eliminó ningún registro. Revisa que exista y que tengas permiso para eliminarlo.');
+  }
+
+  return data[0];
 };
 
 const BUCKET_CV = 'curriculums';

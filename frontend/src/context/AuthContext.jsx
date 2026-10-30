@@ -1,15 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- contexto, constantes y hook conviven por diseño */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../services/supabaseClient';
-
-export const ROLES = {
-  ADMIN: 'admin',
-  RECLUTADOR: 'reclutador',
-  OPERACIONES: 'operaciones'
-};
-
-// Roles que gestionan candidatos y evaluaciones.
-export const ROLES_RRHH = [ROLES.ADMIN, ROLES.RECLUTADOR];
+import { ROLES, tienePermiso } from './permisos';
 
 // Respaldo para pruebas: se usa solo si el usuario aún no tiene rol en Supabase.
 const ROL_POR_CORREO = {
@@ -18,11 +10,11 @@ const ROL_POR_CORREO = {
   'operaciones@aquachile.cl': ROLES.OPERACIONES
 };
 
-// app_metadata solo lo escribe el backend (más seguro); user_metadata lo puede editar el propio usuario.
+// Solo app_metadata: lo escribe el backend. user_metadata lo puede editar el propio usuario
+// (supabase.auth.updateUser), así que no es confiable para asignar roles.
 export const obtenerRol = (user) => {
   if (!user) return null;
-  const rol = user.app_metadata?.rol ?? user.user_metadata?.rol;
-  return rol ?? ROL_POR_CORREO[user.email?.toLowerCase()] ?? null;
+  return user.app_metadata?.rol ?? ROL_POR_CORREO[user.email?.trim().toLowerCase()] ?? null;
 };
 
 // Sin proveedor retorna null; Layout lo tolera para no exigir AuthProvider en sus pruebas.
@@ -68,7 +60,8 @@ export const AuthProvider = ({ children }) => {
 
   const value = useMemo(() => {
     const user = session?.user ?? null;
-    return { session, user, rol: obtenerRol(user), loading, signIn, signOut };
+    const rol = obtenerRol(user);
+    return { session, user, rol, puede: (permiso) => tienePermiso(rol, permiso), loading, signIn, signOut };
   }, [session, loading, signIn, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -78,4 +71,11 @@ export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth debe usarse dentro de <AuthProvider>');
   return ctx;
+};
+
+// Para botones y enlaces: devuelve puede(permiso). Sin AuthProvider (p. ej. pruebas de componentes
+// aislados) permite todo; las rutas siguen protegidas por ProtectedRoute, que sí exige sesión.
+export const usePuede = () => {
+  const ctx = useContext(AuthContext);
+  return (permiso) => !ctx || tienePermiso(ctx.rol, permiso);
 };

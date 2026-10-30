@@ -12,7 +12,8 @@ const TONOS = {
 // Según las props se renderiza como <Link> (to), <a> (href) o <button>.
 const BotonIcono = ({ icono: Icono, etiqueta, tono = 'gris', to, href, ...resto }) => {
   const clases = `inline-flex items-center justify-center w-9 h-9 rounded-md bg-transparent border-none
-    cursor-pointer no-underline transition-colors duration-150 focus:outline-none focus-visible:ring-2 ${TONOS[tono]}`;
+    cursor-pointer no-underline transition-colors duration-150 focus:outline-none focus-visible:ring-2
+    disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent ${TONOS[tono]}`;
   const comunes = { 'aria-label': etiqueta, title: etiqueta, className: clases, ...resto };
   const contenido = <Icono />;
 

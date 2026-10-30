@@ -1,13 +1,14 @@
 import { useContext, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import LogoAquaChile from './LogoAquaChile';
-import { AuthContext, ROLES_RRHH } from '../context/AuthContext';
+import { AuthContext, usePuede } from '../context/AuthContext';
+import { PERMISOS } from '../context/permisos';
 
-// `roles` limita qué rol ve el enlace; sin `roles` lo ven todos.
+// `permiso` limita quién ve el enlace; sin `permiso` lo ven todos.
 const navLinks = [
   { name: 'Inicio', path: '/' },
-  { name: 'Solicitudes', path: '/solicitudes' },
-  { name: 'Candidatos', path: '/candidatos', roles: ROLES_RRHH }
+  { name: 'Solicitudes', path: '/solicitudes', permiso: PERMISOS.VER_SOLICITUDES },
+  { name: 'Candidatos', path: '/candidatos', permiso: PERMISOS.VER_CANDIDATOS }
 ];
 
 const NavItem = ({ item, activo, onClick }) => (
@@ -28,9 +29,10 @@ const NavItem = ({ item, activo, onClick }) => (
 const Layout = () => {
   const location = useLocation();
   const [menuAbierto, setMenuAbierto] = useState(false);
-  // Opcional: sin AuthProvider (p. ej. en pruebas) se muestran todos los enlaces y no hay botón de salida.
+  // Sin AuthProvider (p. ej. en pruebas) se muestran todos los enlaces y no hay botón de salida.
   const auth = useContext(AuthContext);
-  const enlaces = navLinks.filter((l) => !l.roles || !auth || l.roles.includes(auth.rol));
+  const puede = usePuede();
+  const enlaces = navLinks.filter((l) => !l.permiso || puede(l.permiso));
 
   const botonSalir = auth && (
     <button
