@@ -1,6 +1,7 @@
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { render } from '@testing-library/react';
 import { supabase } from '../services/supabaseClient';
+import { AuthContext } from '../context/AuthContext';
 
 export const candidatosFixture = [
   {
@@ -36,10 +37,26 @@ export const candidatosFixture = [
 ];
 
 // Simula la cadena supabase.from('candidatos').select('*').order(...)
-export const simularConsulta = ({ data = null, error = null } = {}) =>
+export const simularConsulta = ({ data = null, error = null, update, borrar } = {}) =>
   spyOn(supabase, 'from').and.returnValue({
-    select: () => ({ order: () => Promise.resolve({ data, error }) })
+    select: () => ({ order: () => Promise.resolve({ data, error }) }),
+    ...(update && { update }),
+    ...(borrar && { delete: borrar })
   });
+
+// Simula supabase.from('candidatos').update(valores).eq(...).select().single().
+// `error` hace fallar la respuesta; `pendiente` la deja sin resolver (para probar el estado de carga).
+export const simularUpdate = ({ error = null, filaBase = candidatosFixture[0], pendiente = false } = {}) =>
+  jasmine.createSpy('update').and.callFake((valores) => ({
+    eq: () => ({
+      select: () => ({
+        single: () =>
+          pendiente
+            ? new Promise(() => {})
+            : Promise.resolve(error ? { data: null, error } : { data: { ...filaBase, ...valores }, error: null })
+      })
+    })
+  }));
 
 const MostrarRuta = () => <span data-testid="ruta">{useLocation().pathname}</span>;
 
@@ -54,3 +71,24 @@ export const renderConRouter = (ui, { ruta = '/' } = {}) =>
       <MostrarRuta />
     </MemoryRouter>
   );
+
+// Simula una sesión con el rol indicado (admin, reclutador, operaciones o null = sin rol)
+// para probar qué ve y a qué accede cada rol sin pasar por Supabase.
+export const conRol = (ui, rol, { sesion = true } = {}) => (
+  <AuthContext.Provider
+    value={{ user: sesion ? { email: 'prueba@aquachile.cl' } : null, rol, loading: false, signOut: () => {} }}
+  >
+    {ui}
+  </AuthContext.Provider>
+);
+
+// Simula supabase.from('candidatos').delete().eq(...).select('id').
+// `filas` es lo que devuelve la base (vacío = RLS bloqueó sin dar error); `error` fuerza un fallo.
+export const simularDelete = ({ error = null, filas = [{ id: 1 }], pendiente = false } = {}) => {
+  const eq = jasmine.createSpy('eq').and.returnValue({
+    select: () => (pendiente ? new Promise(() => {}) : Promise.resolve({ data: error ? null : filas, error }))
+  });
+  const borrar = jasmine.createSpy('delete').and.returnValue({ eq });
+  borrar.eq = eq;
+  return borrar;
+};

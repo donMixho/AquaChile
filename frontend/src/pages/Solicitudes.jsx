@@ -1,15 +1,17 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { obtenerCandidatos } from '../services/candidatosService';
-import { AuthContext, ROLES_RRHH } from '../context/AuthContext';
+import { usePuede } from '../context/AuthContext';
+import { PERMISOS } from '../context/permisos';
 import BotonIcono from '../components/BotonIcono';
+import InsigniaEstado from '../components/InsigniaEstado';
 import { IconoEvaluar, IconoFiltro, IconoVer } from '../components/Iconos';
 
 const Solicitudes = () => {
   const navigate = useNavigate();
-  // Sin AuthProvider (pruebas) se muestra el enlace; con sesión, solo a los roles que pueden evaluar.
-  const auth = useContext(AuthContext);
-  const puedeEvaluar = !auth || ROLES_RRHH.includes(auth.rol);
+  const puede = usePuede();
+  const puedeEvaluar = puede(PERMISOS.EVALUAR);
+  const puedeCrear = puede(PERMISOS.CREAR_SOLICITUD);
 
   const [candidatos, setCandidatos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -75,22 +77,24 @@ const Solicitudes = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => navigate('/solicitudes/nueva')}
-          className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-          style={{
-            background: '#f26522',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: '10px',
-            padding: '12px 22px',
-            fontWeight: '800',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}
-        >
-          + Nueva Solicitud
-        </button>
+        {puedeCrear && (
+          <button
+            onClick={() => navigate('/solicitudes/nueva')}
+            className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+            style={{
+              background: '#f26522',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '10px',
+              padding: '12px 22px',
+              fontWeight: '800',
+              fontSize: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            + Nueva Solicitud
+          </button>
+        )}
       </div>
 
       {/* Filtros */}
@@ -153,16 +157,17 @@ const Solicitudes = () => {
               <th className="px-5 py-4">Cargo / Familia</th>
               <th className="px-5 py-4">Correo</th>
               <th className="px-5 py-4">Fecha solicitud</th>
+              <th className="px-5 py-4">Estado</th>
               <th className="px-5 py-4 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {cargando ? (
-              <tr><td colSpan="6" className="p-6 text-center text-gray-500">Cargando candidatos...</td></tr>
+              <tr><td colSpan="7" className="p-6 text-center text-gray-500">Cargando candidatos...</td></tr>
             ) : errorCarga ? (
-              <tr><td colSpan="6" role="alert" className="p-6 text-center text-red-700">{errorCarga}</td></tr>
+              <tr><td colSpan="7" role="alert" className="p-6 text-center text-red-700">{errorCarga}</td></tr>
             ) : candidatosFiltrados.length === 0 ? (
-              <tr><td colSpan="6" className="p-6 text-center text-gray-500">
+              <tr><td colSpan="7" className="p-6 text-center text-gray-500">
                 {candidatos.length === 0 ? 'No hay candidatos registrados.' : 'Ninguna solicitud coincide con los filtros.'}
               </td></tr>
             ) : candidatosFiltrados.map((candidato) => (
@@ -177,6 +182,7 @@ const Solicitudes = () => {
                 </td>
                 <td className="px-5 py-4 text-gray-700">{candidato.email || '—'}</td>
                 <td className="px-5 py-4 text-gray-700">{fechaSolicitud(candidato) || '—'}</td>
+                <td className="px-5 py-4"><InsigniaEstado candidato={candidato} /></td>
                 <td className="px-5 py-4">
                   <div className="flex gap-1 justify-center">
                     <BotonIcono

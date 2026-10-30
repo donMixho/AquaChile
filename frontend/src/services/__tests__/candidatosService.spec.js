@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient';
-import { obtenerCandidatos, crearCandidato, normalizarEstado, actualizarEstadoCandidato, obtenerCandidatoPorId } from '../candidatosService';
+import { obtenerCandidatos, crearCandidato, normalizarEstado, actualizarEstadoCandidato, obtenerCandidatoPorId, actualizarCandidato, eliminarCandidato } from '../candidatosService';
 
 describe('candidatosService (supabase simulado)', () => {
   it('29. obtenerCandidatos devuelve los datos de la consulta.', async () => {
@@ -105,5 +105,115 @@ describe('candidatosService (supabase simulado)', () => {
 
     await expectAsync(actualizarEstadoCandidato(1, 'Apto')).toBeRejectedWithError('rls');
     await expectAsync(obtenerCandidatoPorId(1)).toBeRejectedWithError('rls');
+  });
+
+  const simularUpdateCandidato = (resultado) => {
+    const eq = jasmine.createSpy('eq').and.returnValue({
+      select: () => ({ single: () => Promise.resolve(resultado) })
+    });
+    const update = jasmine.createSpy('update').and.returnValue({ eq });
+    spyOn(supabase, 'from').and.returnValue({ update });
+    return { update, eq };
+  };
+
+  it('45. actualizarCandidato hace UPDATE por id solo con las columnas editables.', async () => {
+    const { update, eq } = simularUpdateCandidato({ data: { id: 3, cargo: 'Jefe' }, error: null });
+
+    const fila = await actualizarCandidato(3, {
+      nombre: 'Ana Soto',
+      cargo: 'Jefe',
+      email: 'ana@aquachile.cl',
+      familia: 'Calidad',
+      id: 99,
+      estado: 'Apto',
+      cv_url: 'x'
+    });
+
+    expect(fila).toEqual({ id: 3, cargo: 'Jefe' });
+    expect(supabase.from).toHaveBeenCalledWith('candidatos');
+    expect(update).toHaveBeenCalledWith({
+      nombre_completo: 'Ana Soto',
+      cargo: 'Jefe',
+      email: 'ana@aquachile.cl',
+      familia_cargo: 'Calidad'
+    });
+    expect(eq).toHaveBeenCalledWith('id', 3);
+  });
+
+  it('46. actualizarCandidato rechaza si no hay campos editables, sin llamar a Supabase.', async () => {
+    spyOn(supabase, 'from');
+
+    await expectAsync(actualizarCandidato(1, { id: 5, estado: 'Apto' })).toBeRejectedWithError('No hay datos para actualizar.');
+    await expectAsync(actualizarCandidato(1)).toBeRejectedWithError('No hay datos para actualizar.');
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it('47. actualizarCandidato propaga el error de Supabase (red, RLS, etc.).', async () => {
+    simularUpdateCandidato({ data: null, error: new Error('Failed to fetch') });
+
+    await expectAsync(actualizarCandidato(1, { cargo: 'X' })).toBeRejectedWithError('Failed to fetch');
+  });
+
+  it('48. Si el UPDATE no afecta filas (RLS o id inexistente) lanza un error explicativo.', async () => {
+    simularUpdateCandidato({ data: null, error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' } });
+
+    await expectAsync(actualizarCandidato(1, { cargo: 'X' })).toBeRejectedWithError(/No se modificó ningún registro/);
+  });
+
+  it('49. Un rechazo por RLS (42501) se traduce a un mensaje de permisos en ambas funciones.', async () => {
+    simularUpdateCandidato({ data: null, error: { code: '42501', message: 'new row violates row-level security policy' } });
+
+    await expectAsync(actualizarCandidato(1, { cargo: 'X' })).toBeRejectedWithError(/no tiene permiso para modificar candidatos/);
+    await expectAsync(actualizarEstadoCandidato(1, 'Apto')).toBeRejectedWithError(/no tiene permiso para modificar candidatos/);
+  });
+
+  it('50. Ambas funciones avisan cuando el UPDATE no afecta ninguna fila (PGRST116).', async () => {
+    simularUpdateCandidato({ data: null, error: { code: 'PGRST116', message: 'no rows' } });
+
+    await expectAsync(actualizarCandidato(1, { cargo: 'X' })).toBeRejectedWithError(/No se modificó ningún registro/);
+    await expectAsync(actualizarEstadoCandidato(1, 'En proceso')).toBeRejectedWithError(/No se modificó ningún registro/);
+  });
+
+  it('51. actualizarEstadoCandidato propaga errores de red sin traducirlos.', async () => {
+    simularUpdateCandidato({ data: null, error: new Error('Failed to fetch') });
+
+    await expectAsync(actualizarEstadoCandidato(1, 'Apto')).toBeRejectedWithError('Failed to fetch');
+  });
+
+  const simularDeleteCandidato = (resultado) => {
+    const eq = jasmine.createSpy('eq').and.returnValue({ select: () => Promise.resolve(resultado) });
+    const borrar = jasmine.createSpy('delete').and.returnValue({ eq });
+    spyOn(supabase, 'from').and.returnValue({ delete: borrar });
+    return { borrar, eq };
+  };
+
+  it('52. eliminarCandidato hace DELETE por id y devuelve la fila eliminada.', async () => {
+    const { borrar, eq } = simularDeleteCandidato({ data: [{ id: 4 }], error: null });
+
+    expect(await eliminarCandidato(4)).toEqual({ id: 4 });
+    expect(supabase.from).toHaveBeenCalledWith('candidatos');
+    expect(borrar).toHaveBeenCalledTimes(1);
+    expect(eq).toHaveBeenCalledWith('id', 4);
+  });
+
+  it('53. Un DELETE que no borra filas (RLS sin permiso) falla en vez de parecer exitoso.', async () => {
+    simularDeleteCandidato({ data: [], error: null });
+
+    await expectAsync(eliminarCandidato(4)).toBeRejectedWithError(/No se eliminó ningún registro/);
+  });
+
+  it('54. Traduce permisos (42501) y registros asociados (23503); propaga errores de red.', async () => {
+    simularDeleteCandidato({ data: null, error: { code: '42501', message: 'denied' } });
+    await expectAsync(eliminarCandidato(1)).toBeRejectedWithError(/no tiene permiso para eliminar/);
+
+    supabase.from.and.returnValue({
+      delete: () => ({ eq: () => ({ select: () => Promise.resolve({ data: null, error: { code: '23503', message: 'fk' } }) }) })
+    });
+    await expectAsync(eliminarCandidato(1)).toBeRejectedWithError(/registros asociados/);
+
+    supabase.from.and.returnValue({
+      delete: () => ({ eq: () => ({ select: () => Promise.resolve({ data: null, error: new Error('Failed to fetch') }) }) })
+    });
+    await expectAsync(eliminarCandidato(1)).toBeRejectedWithError('Failed to fetch');
   });
 });

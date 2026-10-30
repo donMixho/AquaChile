@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AQUACHILE_THEME } from '../theme';
 import Alerta from '../components/Alerta';
+import InsigniaEstado from '../components/InsigniaEstado';
 import { actualizarEstadoCandidato, obtenerCandidatoPorId } from '../services/candidatosService';
 
 // Tiempo que se muestra el mensaje de éxito antes de volver al listado.
@@ -99,6 +100,9 @@ const DetalleEvaluacion = () => {
             <p style={{ margin: '4px 0' }}><strong>Candidato:</strong> {candidato.nombre_completo}</p>
             <p style={{ margin: '4px 0' }}><strong>Familia de Cargo:</strong> {candidato.familia_cargo ?? '—'}</p>
             <p style={{ margin: '4px 0' }}><strong>Cargo a Postular:</strong> {candidato.cargo ?? '—'}</p>
+            <p style={{ margin: '4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <strong>Estado actual:</strong> <InsigniaEstado candidato={candidato} />
+            </p>
             <p style={{ margin: '4px 0' }}>
               <strong>Curriculum Vitae:</strong>{' '}
               {candidato.cv_url ? (

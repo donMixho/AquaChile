@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { AuthProvider, ROLES_RRHH } from './context/AuthContext'
+import { AuthProvider } from './context/AuthContext'
+import { PERMISOS } from './context/permisos'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Login from './pages/Login'
@@ -18,17 +19,26 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
 
-          {/* Todo lo demás exige sesión; cada grupo restringe por rol */}
+          {/* Todo lo demás exige sesión; cada grupo exige además un permiso (ver context/permisos.js) */}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Layout />}>
               <Route index element={<Dashboard />} />
-              <Route path="solicitudes" element={<Solicitudes />} />
-              <Route path="solicitudes/nueva" element={<NuevaSolicitud />} />
-              <Route path="solicitudes/:id" element={<DetalleSolicitud />} />
 
-              <Route element={<ProtectedRoute allowedRoles={ROLES_RRHH} />}>
+              <Route element={<ProtectedRoute permiso={PERMISOS.VER_SOLICITUDES} />}>
+                <Route path="solicitudes" element={<Solicitudes />} />
+                <Route path="solicitudes/:id" element={<DetalleSolicitud />} />
+              </Route>
+              <Route element={<ProtectedRoute permiso={PERMISOS.CREAR_SOLICITUD} />}>
+                <Route path="solicitudes/nueva" element={<NuevaSolicitud />} />
+              </Route>
+
+              <Route element={<ProtectedRoute permiso={PERMISOS.VER_CANDIDATOS} />}>
                 <Route path="candidatos" element={<Candidatos />} />
+              </Route>
+              <Route element={<ProtectedRoute permiso={PERMISOS.CREAR_CANDIDATO} />}>
                 <Route path="candidatos/nuevo" element={<NuevoCandidato />} />
+              </Route>
+              <Route element={<ProtectedRoute permiso={PERMISOS.EVALUAR} />}>
                 <Route path="solicitudes/:id/evaluar" element={<DetalleEvaluacion />} />
               </Route>
             </Route>

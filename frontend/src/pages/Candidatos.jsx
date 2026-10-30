@@ -1,12 +1,33 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AQUACHILE_THEME } from '../theme';
-import { obtenerCandidatos } from '../services/candidatosService';
+import {
+  actualizarCandidato,
+  actualizarEstadoCandidato,
+  eliminarCandidato,
+  normalizarEstado,
+  obtenerCandidatos
+} from '../services/candidatosService';
 import BotonIcono from '../components/BotonIcono';
-import { IconoEditar, IconoEvaluar, IconoVer } from '../components/Iconos';
+import InsigniaEstado from '../components/InsigniaEstado';
+import { usePuede } from '../context/AuthContext';
+import { PERMISOS } from '../context/permisos';
+import { IconoEditar, IconoEliminar, IconoEvaluar, IconoVer } from '../components/Iconos';
+
+// La tabla usa nombre_completo/familia_cargo; la interfaz trabaja con nombre/familia.
+const paraVista = (candidato) => ({
+  ...candidato,
+  nombre: candidato.nombre_completo ?? candidato.nombre,
+  familia: candidato.familia_cargo ?? candidato.familia
+});
 
 const Candidatos = () => {
   const navigate = useNavigate();
+  const puede = usePuede();
+  const puedeCrear = puede(PERMISOS.CREAR_CANDIDATO);
+  const puedeEditar = puede(PERMISOS.EDITAR_CANDIDATO);
+  const puedeSolicitar = puede(PERMISOS.CREAR_SOLICITUD);
+  const puedeEliminar = puede(PERMISOS.ELIMINAR_CANDIDATO);
 
   const [candidatos, setCandidatos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -16,6 +37,13 @@ const Candidatos = () => {
   const [modalSolicitud, setModalSolicitud] = useState(null);
   const [notificacion, setNotificacion] = useState('');
   const [errorEmail, setErrorEmail] = useState('');
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [errorGuardado, setErrorGuardado] = useState('');
+  const [solicitando, setSolicitando] = useState(false);
+  const [errorSolicitud, setErrorSolicitud] = useState('');
+  const [modalEliminar, setModalEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState('');
 
   useEffect(() => {
     let activo = true;
@@ -23,11 +51,7 @@ const Candidatos = () => {
     obtenerCandidatos()
       .then((datos) => {
         if (activo) {
-          setCandidatos(datos.map((candidato) => ({
-            ...candidato,
-            nombre: candidato.nombre_completo ?? candidato.nombre,
-            familia: candidato.familia_cargo ?? candidato.familia
-          })));
+          setCandidatos(datos.map(paraVista));
         }
       })
       .catch((error) => {
@@ -46,9 +70,10 @@ const Candidatos = () => {
     };
   }, []);
 
-  // 1. Guardar cambios con validación estricta de correo sin espacios
-  const guardarEdicion = (e) => {
+  // 1. Guardar cambios con validación estricta de correo sin espacios y persistencia en Supabase
+  const guardarEdicion = async (e) => {
     e.preventDefault();
+    if (guardandoEdicion) return;
 
     // Verificación de espacios
     if (modalEditar.email.includes(' ')) {
@@ -64,17 +89,58 @@ const Candidatos = () => {
     }
 
     setErrorEmail('');
-    setCandidatos(candidatos.map(c => c.id === modalEditar.id ? modalEditar : c));
-    setModalEditar(null);
-    lanzarNotificacion('✅ Datos del candidato actualizados con éxito.');
+    setErrorGuardado('');
+    setGuardandoEdicion(true);
+    try {
+      // La lista se actualiza con la fila que devuelve la base, no con lo que se escribió.
+      const guardado = await actualizarCandidato(modalEditar.id, {
+        nombre: modalEditar.nombre,
+        cargo: modalEditar.cargo,
+        email: modalEditar.email
+      });
+      setCandidatos((lista) => lista.map((c) => (c.id === guardado.id ? paraVista(guardado) : c)));
+      setModalEditar(null);
+      lanzarNotificacion('✅ Datos del candidato actualizados con éxito.');
+    } catch (error) {
+      setErrorGuardado(`No se pudieron guardar los cambios: ${error?.message ?? 'error desconocido'}`);
+    } finally {
+      setGuardandoEdicion(false);
+    }
   };
 
-  const confirmarSolicitudEvaluacion = () => {
-    lanzarNotificacion(`🚀 Solicitud creada para ${modalSolicitud.nombre}. Carpeta OneDrive y Pauta STAR vinculadas.`);
-    setModalSolicitud(null);
-    setTimeout(() => {
-      navigate('/solicitudes');
-    }, 1500);
+  // Solicitar la evaluación pasa al candidato a "En proceso" en Supabase; la lista se actualiza
+  // con la fila devuelta y el Inicio lo refleja al volver a cargar sus datos.
+  const confirmarSolicitudEvaluacion = async () => {
+    if (solicitando) return;
+    setErrorSolicitud('');
+    setSolicitando(true);
+    try {
+      const guardado = await actualizarEstadoCandidato(modalSolicitud.id, 'En proceso');
+      setCandidatos((lista) => lista.map((c) => (c.id === guardado.id ? paraVista(guardado) : c)));
+      lanzarNotificacion(`✅ Evaluación solicitada para ${modalSolicitud.nombre}. Estado: En proceso.`);
+      setModalSolicitud(null);
+    } catch (error) {
+      setErrorSolicitud(`No se pudo solicitar la evaluación: ${error?.message ?? 'error desconocido'}`);
+    } finally {
+      setSolicitando(false);
+    }
+  };
+
+  // Elimina en Supabase y solo entonces quita la fila de la lista local.
+  const confirmarEliminacion = async () => {
+    if (eliminando) return;
+    setErrorEliminar('');
+    setEliminando(true);
+    try {
+      await eliminarCandidato(modalEliminar.id);
+      setCandidatos((lista) => lista.filter((c) => c.id !== modalEliminar.id));
+      lanzarNotificacion(`🗑️ Candidato ${modalEliminar.nombre} eliminado.`);
+      setModalEliminar(null);
+    } catch (error) {
+      setErrorEliminar(`No se pudo eliminar el candidato: ${error?.message ?? 'error desconocido'}`);
+    } finally {
+      setEliminando(false);
+    }
   };
 
   const lanzarNotificacion = (msg) => {
@@ -120,22 +186,24 @@ const Candidatos = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => navigate('/candidatos/nuevo')}
-          className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-          style={{
-            background: '#f26522',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: '10px',
-            padding: '12px 20px',
-            fontWeight: '800',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}
-        >
-          + Nuevo Candidato
-        </button>
+        {puedeCrear && (
+          <button
+            onClick={() => navigate('/candidatos/nuevo')}
+            className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+            style={{
+              background: '#f26522',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '10px',
+              padding: '12px 20px',
+              fontWeight: '800',
+              fontSize: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            + Nuevo Candidato
+          </button>
+        )}
       </div>
 
       {/* Tabla (mismo estilo que Solicitudes) */}
@@ -146,6 +214,7 @@ const Candidatos = () => {
               <th className="px-5 py-4">Candidato</th>
               <th className="px-5 py-4">RUT</th>
               <th className="px-5 py-4">Cargo / Área</th>
+              <th className="px-5 py-4">Estado</th>
               <th className="px-5 py-4">Contacto</th>
               <th className="px-5 py-4">CV</th>
               <th className="px-5 py-4 text-center">Acciones</th>
@@ -153,11 +222,11 @@ const Candidatos = () => {
           </thead>
           <tbody>
             {cargando ? (
-              <tr><td colSpan="6" className="p-6 text-center text-gray-500">Cargando candidatos...</td></tr>
+              <tr><td colSpan="7" className="p-6 text-center text-gray-500">Cargando candidatos...</td></tr>
             ) : errorCarga ? (
-              <tr><td colSpan="6" role="alert" className="p-6 text-center text-red-700">{errorCarga}</td></tr>
+              <tr><td colSpan="7" role="alert" className="p-6 text-center text-red-700">{errorCarga}</td></tr>
             ) : candidatos.length === 0 ? (
-              <tr><td colSpan="6" className="p-6 text-center text-gray-500">No hay candidatos registrados.</td></tr>
+              <tr><td colSpan="7" className="p-6 text-center text-gray-500">No hay candidatos registrados.</td></tr>
             ) : candidatos.map((c) => (
               <tr key={c.id} className="border-b border-gray-100 text-sm">
                 <td className="px-5 py-4 font-bold text-aqua-blue">{c.nombre}</td>
@@ -166,6 +235,7 @@ const Candidatos = () => {
                   <div>{c.cargo}</div>
                   <small className="text-gray-500">{c.familia}</small>
                 </td>
+                <td className="px-5 py-4"><InsigniaEstado candidato={c} /></td>
                 <td className="px-5 py-4 text-gray-700">{c.email}</td>
                 <td className="px-5 py-4">
                   {c.cv_url ? (
@@ -176,21 +246,45 @@ const Candidatos = () => {
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex gap-1 justify-center">
-                    <BotonIcono
-                      icono={IconoEditar}
-                      etiqueta={`Editar candidato ${c.nombre}`}
-                      tono="azul"
-                      onClick={() => {
-                        setErrorEmail('');
-                        setModalEditar({ ...c });
-                      }}
-                    />
-                    <BotonIcono
-                      icono={IconoEvaluar}
-                      etiqueta={`Solicitar evaluación de ${c.nombre}`}
-                      tono="naranja"
-                      onClick={() => setModalSolicitud(c)}
-                    />
+                    {puedeEditar && (
+                      <BotonIcono
+                        icono={IconoEditar}
+                        etiqueta={`Editar candidato ${c.nombre}`}
+                        tono="azul"
+                        onClick={() => {
+                          setErrorEmail('');
+                          setErrorGuardado('');
+                          setModalEditar({ ...c });
+                        }}
+                      />
+                    )}
+                    {puedeSolicitar && (
+                      <BotonIcono
+                        icono={IconoEvaluar}
+                        etiqueta={
+                          normalizarEstado(c) === 'Pendiente'
+                            ? `Solicitar evaluación de ${c.nombre}`
+                            : `Evaluación ya solicitada (${normalizarEstado(c)})`
+                        }
+                        tono="naranja"
+                        disabled={normalizarEstado(c) !== 'Pendiente'}
+                        onClick={() => {
+                          setErrorSolicitud('');
+                          setModalSolicitud(c);
+                        }}
+                      />
+                    )}
+                    {puedeEliminar && (
+                      <BotonIcono
+                        icono={IconoEliminar}
+                        etiqueta={`Eliminar candidato ${c.nombre}`}
+                        tono="rojo"
+                        onClick={() => {
+                          setErrorEliminar('');
+                          setModalEliminar(c);
+                        }}
+                      />
+                    )}
                   </div>
                 </td>
               </tr>
@@ -324,11 +418,19 @@ const Candidatos = () => {
                 )}
               </div>
 
+              {errorGuardado && (
+                <div role="alert" style={{ color: '#FF7B7B', fontSize: '13px', fontWeight: 'bold', border: '1px solid rgba(255, 123, 123, 0.5)', borderRadius: '8px', padding: '10px 12px' }}>
+                  {errorGuardado}
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
                 <button
                   type="button"
+                  disabled={guardandoEdicion}
                   onClick={() => {
                     setErrorEmail('');
+                    setErrorGuardado('');
                     setModalEditar(null);
                   }}
                   style={{
@@ -337,7 +439,8 @@ const Candidatos = () => {
                     border: '1px solid rgba(255, 255, 255, 0.2)',
                     background: 'rgba(255, 255, 255, 0.08)',
                     color: '#FFFFFF',
-                    cursor: 'pointer',
+                    cursor: guardandoEdicion ? 'not-allowed' : 'pointer',
+                    opacity: guardandoEdicion ? 0.5 : 1,
                     fontWeight: '600',
                     fontSize: '14px'
                   }}
@@ -346,6 +449,7 @@ const Candidatos = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={guardandoEdicion}
                   style={{
                     padding: '10px 22px',
                     borderRadius: '8px',
@@ -354,14 +458,105 @@ const Candidatos = () => {
                     color: '#021120',
                     fontWeight: '800',
                     fontSize: '14px',
-                    cursor: 'pointer',
+                    cursor: guardandoEdicion ? 'wait' : 'pointer',
+                    opacity: guardandoEdicion ? 0.7 : 1,
                     boxShadow: '0 0 14px rgba(0, 242, 254, 0.4)'
                   }}
                 >
-                  Guardar Cambios
+                  {guardandoEdicion ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL CONFIRMAR ELIMINACIÓN (solo admin) --- */}
+      {modalEliminar && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(1, 10, 18, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-eliminar"
+            style={{
+              background: '#041B2D',
+              border: '1px solid rgba(255, 123, 123, 0.5)',
+              borderRadius: '14px',
+              padding: '28px',
+              maxWidth: '460px',
+              width: '90%',
+              boxShadow: '0 10px 40px rgba(255, 75, 75, 0.2)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <span style={{ color: '#FF7B7B', display: 'flex' }}><IconoEliminar className="w-7 h-7" /></span>
+              <h3 id="titulo-eliminar" style={{ margin: 0, color: '#FFFFFF', fontSize: '20px', fontWeight: '800' }}>
+                Eliminar candidato
+              </h3>
+            </div>
+
+            <p style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: '1.6', margin: '0 0 8px 0' }}>
+              ¿Estás seguro de que deseas eliminar a este candidato?
+            </p>
+            <p style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: '1.6', margin: '0 0 20px 0' }}>
+              <strong style={{ color: '#FFFFFF' }}>{modalEliminar.nombre}</strong> ({modalEliminar.rut}).
+              Esta acción no se puede deshacer.
+            </p>
+
+            {errorEliminar && (
+              <div role="alert" style={{ color: '#FF7B7B', fontSize: '13px', fontWeight: 'bold', border: '1px solid rgba(255, 123, 123, 0.5)', borderRadius: '8px', padding: '10px 12px', marginBottom: '16px' }}>
+                {errorEliminar}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                disabled={eliminando}
+                onClick={() => setModalEliminar(null)}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#FFFFFF',
+                  cursor: eliminando ? 'not-allowed' : 'pointer',
+                  opacity: eliminando ? 0.5 : 1,
+                  fontWeight: '600'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={eliminando}
+                onClick={confirmarEliminacion}
+                style={{
+                  padding: '10px 22px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#dc2626',
+                  color: '#FFFFFF',
+                  cursor: eliminando ? 'wait' : 'pointer',
+                  opacity: eliminando ? 0.7 : 1,
+                  fontWeight: '800'
+                }}
+              >
+                {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -422,16 +617,22 @@ const Candidatos = () => {
               borderLeft: `4px solid ${AQUACHILE_THEME.accent || '#00FFB2'}`,
               border: '1px solid rgba(255, 255, 255, 0.08)'
             }}>
-              <strong style={{ color: AQUACHILE_THEME.accent || '#00FFB2' }}>Acciones automáticas del sistema:</strong>
+              <strong style={{ color: AQUACHILE_THEME.accent || '#00FFB2' }}>Qué ocurrirá:</strong>
               <ul style={{ margin: '8px 0 0 16px', padding: 0, color: '#CBD5E1', lineHeight: '1.5' }}>
-                <li>Creación de carpeta en OneDrive: <code style={{ color: '#00F2FE' }}>/{modalSolicitud.nombre}/</code></li>
-                <li>Incrustación de plantilla Excel y Pauta STAR ({modalSolicitud.familia})</li>
-                <li>Notificación inmediata al psicólogo evaluador</li>
+                <li>El estado del candidato pasará a <strong>En proceso</strong>.</li>
+                <li>Quedará disponible para evaluar en Solicitudes ({modalSolicitud.familia}).</li>
               </ul>
             </div>
 
+            {errorSolicitud && (
+              <div role="alert" style={{ color: '#FF7B7B', fontSize: '13px', fontWeight: 'bold', border: '1px solid rgba(255, 123, 123, 0.5)', borderRadius: '8px', padding: '10px 12px', marginBottom: '16px' }}>
+                {errorSolicitud}
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button
+                disabled={solicitando}
                 onClick={() => setModalSolicitud(null)}
                 style={{
                   padding: '10px 18px',
@@ -439,13 +640,15 @@ const Candidatos = () => {
                   border: '1px solid rgba(255, 255, 255, 0.2)',
                   background: 'rgba(255, 255, 255, 0.08)',
                   color: '#FFFFFF',
-                  cursor: 'pointer',
+                  cursor: solicitando ? 'not-allowed' : 'pointer',
+                  opacity: solicitando ? 0.5 : 1,
                   fontWeight: '600'
                 }}
               >
                 Cancelar
               </button>
               <button
+                disabled={solicitando}
                 onClick={confirmarSolicitudEvaluacion}
                 style={{
                   padding: '10px 22px',
@@ -453,12 +656,13 @@ const Candidatos = () => {
                   border: 'none',
                   background: AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
                   color: '#021120',
-                  cursor: 'pointer',
+                  cursor: solicitando ? 'wait' : 'pointer',
+                  opacity: solicitando ? 0.7 : 1,
                   fontWeight: '800',
                   boxShadow: '0 0 14px rgba(0, 242, 254, 0.4)'
                 }}
               >
-                Confirmar y Derivar
+                {solicitando ? 'Solicitando...' : 'Confirmar y Derivar'}
               </button>
             </div>
           </div>
