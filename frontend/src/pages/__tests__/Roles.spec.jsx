@@ -1,6 +1,7 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Candidatos from '../Candidatos';
+import Dashboard from '../Dashboard';
 import Solicitudes from '../Solicitudes';
 import Layout from '../../components/Layout';
 import ProtectedRoute from '../../components/ProtectedRoute';
@@ -92,6 +93,7 @@ describe('Control de acceso por rol', () => {
   it('50. Operaciones ve Solicitudes sin Evaluar ni Nueva Solicitud.', async () => {
     simularConsulta({ data: candidatosFixture });
     renderConRouter(conRol(<Solicitudes />, 'operaciones'));
+    fireEvent.click(screen.getByRole('button', { name: 'Candidatos por evaluar' }));
     await screen.findByText('Carlos Valenzuela');
 
     expect(screen.queryAllByRole('link', { name: /^Evaluar a/ }).length).toBe(0);
@@ -101,6 +103,7 @@ describe('Control de acceso por rol', () => {
   it('51. El reclutador ve el enlace Evaluar en cada solicitud.', async () => {
     simularConsulta({ data: candidatosFixture });
     renderConRouter(conRol(<Solicitudes />, 'reclutador'));
+    fireEvent.click(screen.getByRole('button', { name: 'Candidatos por evaluar' }));
     await screen.findByText('Carlos Valenzuela');
 
     expect(screen.getAllByRole('link', { name: /^Evaluar a/ }).length).toBe(3);
@@ -109,12 +112,71 @@ describe('Control de acceso por rol', () => {
   it('52. Candidatos oculta Editar y Nuevo Candidato a un rol sin esos permisos.', async () => {
     simularConsulta({ data: candidatosFixture });
     renderConRouter(conRol(<Candidatos />, 'operaciones'));
+    await screen.findByRole('button', { name: 'Todos' });
+    fireEvent.click(screen.getByRole('button', { name: 'Todos' }));
     await screen.findByText('Carlos Valenzuela');
 
     expect(screen.queryAllByRole('button', { name: /^Editar candidato/ }).length).toBe(0);
     expect(screen.queryByRole('button', { name: '+ Nuevo Candidato' })).toBeNull();
     expect(screen.queryAllByRole('button', { name: /^Solicitar evaluación/ }).length).toBe(0);
     expect(screen.queryAllByRole('button', { name: /^Eliminar candidato/ }).length).toBe(0);
+  });
+
+  const fixtureConEstados = [
+    { ...candidatosFixture[0], estado: 'Finalizada', estado_resultado: 'Apto' },
+    { ...candidatosFixture[1], estado: 'En proceso' },
+    candidatosFixture[2]
+  ];
+
+  it('52b. Operaciones ve por defecto solo los candidatos Apto y sin acciones de escritura.', async () => {
+    simularConsulta({ data: fixtureConEstados });
+    const { container } = renderConRouter(conRol(<Candidatos />, 'operaciones'));
+    await screen.findByText('Juan Pérez González');
+
+    expect(container.querySelectorAll('tbody tr').length).toBe(1);
+    expect(screen.queryByText('Carlos Valenzuela')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Solo Aptos' }).getAttribute('aria-pressed')).toBe('true');
+    expect(container.querySelectorAll('tbody button').length).toBe(0);
+  });
+
+  it('52c. Operaciones puede alternar a "Todos" y sigue sin ver editar, evaluar ni eliminar.', async () => {
+    simularConsulta({ data: fixtureConEstados });
+    const { container } = renderConRouter(conRol(<Candidatos />, 'operaciones'));
+    await screen.findByText('Juan Pérez González');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Todos' }));
+
+    expect(container.querySelectorAll('tbody tr').length).toBe(3);
+    expect(screen.getByText('Carlos Valenzuela')).toBeTruthy();
+    expect(container.querySelectorAll('tbody button').length).toBe(0);
+    expect(screen.queryByRole('button', { name: /^(Editar|Eliminar|Solicitar)/ })).toBeNull();
+  });
+
+  it('52d. Operaciones sin candidatos Apto ve un mensaje vacío específico.', async () => {
+    simularConsulta({ data: candidatosFixture });
+    renderConRouter(conRol(<Candidatos />, 'operaciones'));
+
+    expect(await screen.findByText('No hay candidatos en estado Apto.')).toBeTruthy();
+  });
+
+  it('52e. El reclutador no ve el filtro y lista a todos los candidatos.', async () => {
+    simularConsulta({ data: fixtureConEstados });
+    const { container } = renderConRouter(conRol(<Candidatos />, 'reclutador'));
+    await screen.findByText('Carlos Valenzuela');
+
+    expect(screen.queryByRole('button', { name: 'Solo Aptos' })).toBeNull();
+    expect(container.querySelectorAll('tbody tr').length).toBe(3);
+  });
+
+  it('52f. El Inicio de Operaciones destaca los Aptos listos para incorporación junto al total.', async () => {
+    simularConsulta({ data: fixtureConEstados });
+    renderConRouter(conRol(<Dashboard />, 'operaciones'));
+
+    await screen.findByRole('heading', { level: 2, name: '3' });
+    const tarjeta = screen.getByText('Aptos listos para incorporación').closest('a');
+    expect(tarjeta.querySelector('h2').textContent).toBe('1');
+    expect(tarjeta.getAttribute('href')).toBe('/candidatos');
+    expect(screen.getByText('Total de Solicitudes').closest('a').querySelector('h2').textContent).toBe('3');
   });
 
   it('53. Candidatos muestra Editar y Nuevo Candidato al reclutador.', async () => {

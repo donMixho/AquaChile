@@ -24,6 +24,19 @@ describe('Candidatos', () => {
     expect(container.querySelectorAll('a[href="https://example.com/cv-juan.pdf"]').length).toBe(1);
   });
 
+  it('20b. Muestra "Carpeta Drive" en nueva pestaña solo si hay drive_folder_url.', async () => {
+    simularConsulta({
+      data: [{ ...candidatosFixture[0], drive_folder_url: 'https://drive.google.com/f1' }, candidatosFixture[1]]
+    });
+    renderConRouter(<Candidatos />);
+
+    await screen.findByText('Juan Pérez González');
+    const enlaces = screen.getAllByText('Carpeta Drive');
+    expect(enlaces.length).toBe(1);
+    expect(enlaces[0].getAttribute('href')).toBe('https://drive.google.com/f1');
+    expect(enlaces[0].getAttribute('target')).toBe('_blank');
+  });
+
   it('21. Muestra el error cuando el servicio de datos no responde.', async () => {
     simularConsulta({ error: new Error('servicio caído') });
     renderConRouter(<Candidatos />);
@@ -180,6 +193,8 @@ describe('Candidatos: eliminar (solo admin)', () => {
     const borrar = simularDelete(opcionesDelete);
     simularConsulta({ data: candidatosFixture, borrar });
     renderConRouter(conRol(<Candidatos />, rol));
+    // Operaciones parte filtrado en "Solo Aptos"; se pasa a "Todos" para comprobar las filas completas.
+    if (rol === 'operaciones') fireEvent.click(await screen.findByRole('button', { name: 'Todos' }));
     await screen.findByText('Carlos Valenzuela');
     return borrar;
   };
@@ -201,6 +216,23 @@ describe('Candidatos: eliminar (solo admin)', () => {
 
       expect(screen.queryAllByRole('button', { name: /^Eliminar candidato/ }).length).toBe(0);
     });
+  });
+
+  const escribirNombre = (texto = 'Juan Pérez González') =>
+    fireEvent.change(screen.getByLabelText(/escribe el nombre completo/), { target: { value: texto } });
+
+  it('68b. "Sí, eliminar" sigue bloqueado hasta escribir el nombre exacto del postulante.', async () => {
+    const borrar = await abrirEliminar();
+    pulsarPapelera();
+    const confirmar = screen.getByRole('button', { name: 'Sí, eliminar' });
+    expect(confirmar.disabled).toBe(true);
+
+    escribirNombre('Juan Pérez');
+    expect(confirmar.disabled).toBe(true);
+
+    escribirNombre('  juan  pérez   gonzález ');
+    expect(confirmar.disabled).toBe(false);
+    expect(borrar).not.toHaveBeenCalled();
   });
 
   it('68. La papelera abre un modal de confirmación sin borrar nada todavía.', async () => {
@@ -229,6 +261,7 @@ describe('Candidatos: eliminar (solo admin)', () => {
     const borrar = await abrirEliminar();
     pulsarPapelera();
 
+    escribirNombre();
     fireEvent.click(screen.getByRole('button', { name: 'Sí, eliminar' }));
 
     expect(await screen.findByText(/Candidato Juan Pérez González eliminado/)).toBeTruthy();
@@ -242,6 +275,7 @@ describe('Candidatos: eliminar (solo admin)', () => {
     await abrirEliminar({ filas: [] });
     pulsarPapelera();
 
+    escribirNombre();
     fireEvent.click(screen.getByRole('button', { name: 'Sí, eliminar' }));
 
     const alerta = await screen.findByRole('alert');
@@ -255,6 +289,7 @@ describe('Candidatos: eliminar (solo admin)', () => {
     await abrirEliminar({ pendiente: true });
     pulsarPapelera();
 
+    escribirNombre();
     fireEvent.click(screen.getByRole('button', { name: 'Sí, eliminar' }));
 
     const eliminando = await screen.findByRole('button', { name: 'Eliminando...' });

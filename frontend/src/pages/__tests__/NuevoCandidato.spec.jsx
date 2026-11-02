@@ -14,6 +14,7 @@ const enviar = () => fireEvent.click(screen.getByRole('button', { name: 'Registr
 
 describe('NuevoCandidato (rol reclutador)', () => {
   beforeEach(() => {
+    spyOn(window, 'fetch').and.callFake(() => Promise.reject(new Error('sin red')));
     spyOn(supabase, 'from').and.returnValue({
       insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: { id: 9 }, error: null }) }) })
     });
@@ -41,6 +42,19 @@ describe('NuevoCandidato (rol reclutador)', () => {
     enviar();
 
     expect(screen.queryByText('El RUT no es válido', { exact: false })).toBeNull();
+  });
+
+  it('56b. Convierte la k minúscula en K al escribir y guarda un RUT con k minúscula.', async () => {
+    const rut = screen.getByPlaceholderText('12.345.678-9');
+    fireEvent.change(rut, { target: { value: '15432190k' } });
+    expect(rut.value).toBe('15.432.190-K');
+
+    llenar({ rut: '15.432.190-k' });
+    enviar();
+
+    expect(screen.queryByText('El RUT no es válido', { exact: false })).toBeNull();
+    expect((await screen.findByRole('status')).textContent).toContain('registrado exitosamente');
+    expect(supabase.from).toHaveBeenCalledWith('candidatos');
   });
 
   it('57. Normaliza el correo (sin espacios y en minúsculas).', () => {

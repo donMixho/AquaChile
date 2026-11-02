@@ -2,7 +2,8 @@ import { useContext, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import LogoAquaChile from './LogoAquaChile';
 import { AuthContext, usePuede } from '../context/AuthContext';
-import { PERMISOS } from '../context/permisos';
+import { ETIQUETAS_ROL, PERMISOS } from '../context/permisos';
+import { IconoUsuario } from './Iconos';
 
 // `permiso` limita quién ve el enlace; sin `permiso` lo ven todos.
 const navLinks = [
@@ -34,6 +35,19 @@ const Layout = () => {
   const puede = usePuede();
   const enlaces = navLinks.filter((l) => !l.permiso || puede(l.permiso));
 
+  // Insignia con el rol de la sesión; cambia según quién inició sesión.
+  const etiquetaRol = auth?.rol ? ETIQUETAS_ROL[auth.rol] : null;
+  const insigniaRol = etiquetaRol && (
+    <span
+      data-testid="rol-actual"
+      title={`Sesión iniciada como ${etiquetaRol}`}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-white/10 border border-white/20"
+    >
+      <IconoUsuario className="w-4 h-4" />
+      {etiquetaRol}
+    </span>
+  );
+
   const botonSalir = auth && (
     <button
       type="button"
@@ -62,10 +76,11 @@ const Layout = () => {
             {menuAbierto ? '✕' : '☰'}
           </button>
 
-          <nav aria-label="Navegación principal" className="hidden md:flex gap-3">
+          <nav aria-label="Navegación principal" className="hidden md:flex items-center gap-3">
             {enlaces.map((item) => (
               <NavItem key={item.name} item={item} activo={location.pathname === item.path} />
             ))}
+            {insigniaRol}
             {botonSalir}
           </nav>
         </div>
@@ -80,6 +95,7 @@ const Layout = () => {
                 onClick={() => setMenuAbierto(false)}
               />
             ))}
+            {insigniaRol}
             {botonSalir}
           </nav>
         )}

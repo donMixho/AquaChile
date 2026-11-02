@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { AuthContext } from '../context/AuthContext';
+import { ROLES } from '../context/permisos';
 import { ESTADOS_CANDIDATO, normalizarEstado, obtenerCandidatos } from '../services/candidatosService';
 import MetricCard from '../components/MetricCard';
 import BarrasHorizontales from '../components/BarrasHorizontales';
@@ -20,6 +22,7 @@ const contarPor = (lista, clave) =>
   }, {});
 
 const Dashboard = () => {
+  const esOperaciones = useContext(AuthContext)?.rol === ROLES.OPERACIONES;
   const [candidatos, setCandidatos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState('');
@@ -82,10 +85,10 @@ const Dashboard = () => {
           colorValor="text-aqua-orange"
         />
         <MetricCard
-          titulo="Aptos"
+          titulo={esOperaciones ? 'Aptos listos para incorporación' : 'Aptos'}
           valor={cifra(porEstado.Apto ?? 0)}
-          to="/solicitudes"
-          detalle="evaluación favorable"
+          to={esOperaciones ? '/candidatos' : '/solicitudes'}
+          detalle={esOperaciones ? 'aprobados en la evaluación psicolaboral' : 'evaluación favorable'}
           colorValor="text-green-600"
         />
       </div>

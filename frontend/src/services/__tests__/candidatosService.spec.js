@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { crearCarpetaDrive } from '../driveService';
 import { obtenerCandidatos, crearCandidato, normalizarEstado, actualizarEstadoCandidato, obtenerCandidatoPorId, actualizarCandidato, eliminarCandidato } from '../candidatosService';
 
 describe('candidatosService (supabase simulado)', () => {
@@ -22,6 +23,7 @@ describe('candidatosService (supabase simulado)', () => {
   });
 
   it('31. crearCandidato mapea los campos del formulario a columnas de la tabla.', async () => {
+    spyOn(window, 'fetch').and.callFake(() => Promise.reject(new Error('sin red')));
     const insert = jasmine.createSpy('insert').and.returnValue({
       select: () => ({ single: () => Promise.resolve({ data: { id: 9 }, error: null }) })
     });
@@ -215,5 +217,67 @@ describe('candidatosService (supabase simulado)', () => {
       delete: () => ({ eq: () => ({ select: () => Promise.resolve({ data: null, error: new Error('Failed to fetch') }) }) })
     });
     await expectAsync(eliminarCandidato(1)).toBeRejectedWithError('Failed to fetch');
+  });
+});
+
+const respuestaJson = (cuerpo, ok = true) => Promise.resolve({ ok, json: () => Promise.resolve(cuerpo) });
+
+describe('Integración con Google Drive', () => {
+  const datos = { nombre: 'Ana Soto', rut: '1-9', cargo: 'Operaria', familia: 'Calidad', email: 'a@b.cl' };
+  const filaCreada = { id: 9, rut: '1-9', nombre_completo: 'Ana Soto' };
+  const simularInsert = () => ({
+    insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: filaCreada, error: null }) }) })
+  });
+
+  it('70. crearCarpetaDrive envía rut y nombre por POST y devuelve folderUrl.', async () => {
+    spyOn(window, 'fetch').and.returnValue(respuestaJson({ success: true, folderUrl: 'https://drive/f1' }));
+
+    expect(await crearCarpetaDrive({ rut: '1-9', nombre: 'Ana Soto' })).toBe('https://drive/f1');
+    const [url, opciones] = window.fetch.calls.mostRecent().args;
+    expect(url).toBe('https://webhook.test/drive');
+    expect(opciones.method).toBe('POST');
+    expect(JSON.parse(opciones.body)).toEqual({ rut: '1-9', nombre: 'Ana Soto' });
+  });
+
+  it('71. crearCarpetaDrive devuelve null si falla la red, el HTTP o success es false.', async () => {
+    spyOn(window, 'fetch').and.returnValues(
+      Promise.reject(new Error('sin red')),
+      respuestaJson({}, false),
+      respuestaJson({ success: false, error: 'x' }),
+      Promise.resolve({ ok: true, json: () => Promise.reject(new Error('no es JSON')) })
+    );
+
+    for (let i = 0; i < 4; i += 1) {
+      expect(await crearCarpetaDrive({ rut: '1-9', nombre: 'Ana' })).toBeNull();
+    }
+  });
+
+  it('72. Si Drive falla, crearCandidato igual devuelve el candidato registrado.', async () => {
+    spyOn(window, 'fetch').and.callFake(() => Promise.reject(new Error('timeout')));
+    spyOn(supabase, 'from').and.returnValue(simularInsert());
+
+    expect(await crearCandidato(datos)).toEqual(filaCreada);
+  });
+
+  it('73. Con carpeta creada, guarda drive_folder_url en el candidato.', async () => {
+    spyOn(window, 'fetch').and.returnValue(respuestaJson({ success: true, folderUrl: 'https://drive/f1' }));
+    const actualizado = { ...filaCreada, drive_folder_url: 'https://drive/f1' };
+    const update = jasmine.createSpy('update').and.returnValue({
+      eq: () => ({ select: () => ({ single: () => Promise.resolve({ data: actualizado, error: null }) }) })
+    });
+    spyOn(supabase, 'from').and.returnValue({ ...simularInsert(), update });
+
+    expect(await crearCandidato(datos)).toEqual(actualizado);
+    expect(update).toHaveBeenCalledWith({ drive_folder_url: 'https://drive/f1' });
+  });
+
+  it('74. Si falla guardar el enlace, el candidato se devuelve sin error.', async () => {
+    spyOn(window, 'fetch').and.returnValue(respuestaJson({ success: true, folderUrl: 'https://drive/f1' }));
+    const update = () => ({
+      eq: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: new Error('columna inexistente') }) }) })
+    });
+    spyOn(supabase, 'from').and.returnValue({ ...simularInsert(), update });
+
+    expect(await crearCandidato(datos)).toEqual(filaCreada);
   });
 });

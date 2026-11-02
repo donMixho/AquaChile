@@ -2,12 +2,43 @@ import { cleanup, fireEvent, screen } from '@testing-library/react';
 import Solicitudes from '../Solicitudes';
 import { candidatosFixture, renderConRouter, simularConsulta } from '../../test/helpers';
 
+const solicitudesFixture = [
+  { id: 1, titulo: 'Turno noche', cargo: 'Operario', familia_cargo: 'Operaciones', vacantes: 3, estado: 'Abierta', created_at: '2026-09-20T12:00:00Z' }
+];
+
+// El listado abre en "Solicitudes de cargo"; estas pruebas ejercitan la pestaña de candidatos.
+const verCandidatos = () => fireEvent.click(screen.getByRole('button', { name: 'Candidatos por evaluar' }));
+
 describe('Solicitudes', () => {
   afterEach(cleanup);
+
+  it('13. Lista las solicitudes de cargo desde Supabase por defecto.', async () => {
+    simularConsulta({ data: solicitudesFixture });
+    const { container } = renderConRouter(<Solicitudes />);
+
+    await screen.findByText('Turno noche');
+    expect(container.querySelectorAll('tbody tr').length).toBe(1);
+    expect(screen.getByRole('link', { name: 'Ver detalle de la solicitud Turno noche' }).getAttribute('href')).toBe('/solicitudes/1');
+  });
+
+  it('14. Muestra el error si falla la carga de solicitudes.', async () => {
+    simularConsulta({ error: new Error('sin conexión') });
+    renderConRouter(<Solicitudes />);
+
+    expect((await screen.findByRole('alert')).textContent).toContain('sin conexión');
+  });
+
+  it('15. Informa cuando no hay solicitudes registradas.', async () => {
+    simularConsulta({ data: [] });
+    renderConRouter(<Solicitudes />);
+
+    expect(await screen.findByText('No hay solicitudes registradas.')).toBeTruthy();
+  });
 
   it('7. Renderiza una fila por cada candidato recibido del servicio.', async () => {
     simularConsulta({ data: candidatosFixture });
     const { container } = renderConRouter(<Solicitudes />);
+    verCandidatos();
 
     await screen.findByText('María José Silva');
     expect(container.querySelectorAll('tbody tr').length).toBe(3);
@@ -16,6 +47,7 @@ describe('Solicitudes', () => {
   it('8. Filtra las solicitudes por familia de cargo.', async () => {
     simularConsulta({ data: candidatosFixture });
     const { container } = renderConRouter(<Solicitudes />);
+    verCandidatos();
     await screen.findByText('María José Silva');
 
     fireEvent.change(screen.getByLabelText('Filtrar por familia de cargo'), {
@@ -30,6 +62,7 @@ describe('Solicitudes', () => {
   it('9. Filtra por rango de fechas y el botón Limpiar restablece el listado.', async () => {
     simularConsulta({ data: candidatosFixture });
     const { container } = renderConRouter(<Solicitudes />);
+    verCandidatos();
     await screen.findByText('María José Silva');
 
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-24' } });
@@ -43,6 +76,7 @@ describe('Solicitudes', () => {
   it('10. Informa cuando ningún candidato coincide con los filtros.', async () => {
     simularConsulta({ data: candidatosFixture });
     renderConRouter(<Solicitudes />);
+    verCandidatos();
     await screen.findByText('María José Silva');
 
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2027-01-01' } });
@@ -62,6 +96,7 @@ describe('Solicitudes', () => {
   it('12. Muestra el error cuando falla la carga de candidatos.', async () => {
     simularConsulta({ error: new Error('timeout') });
     renderConRouter(<Solicitudes />);
+    verCandidatos();
 
     expect((await screen.findByRole('alert')).textContent).toContain('timeout');
   });

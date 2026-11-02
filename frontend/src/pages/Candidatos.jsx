@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AQUACHILE_THEME } from '../theme';
 import {
   actualizarCandidato,
   actualizarEstadoCandidato,
@@ -9,9 +8,11 @@ import {
   obtenerCandidatos
 } from '../services/candidatosService';
 import BotonIcono from '../components/BotonIcono';
+import Alerta from '../components/Alerta';
+import Modal, { BotonModal } from '../components/Modal';
 import InsigniaEstado from '../components/InsigniaEstado';
-import { usePuede } from '../context/AuthContext';
-import { PERMISOS } from '../context/permisos';
+import { AuthContext, usePuede } from '../context/AuthContext';
+import { PERMISOS, ROLES } from '../context/permisos';
 import { IconoEditar, IconoEliminar, IconoEvaluar, IconoVer } from '../components/Iconos';
 
 // La tabla usa nombre_completo/familia_cargo; la interfaz trabaja con nombre/familia.
@@ -21,6 +22,9 @@ const paraVista = (candidato) => ({
   familia: candidato.familia_cargo ?? candidato.familia
 });
 
+const claseCampo = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-aqua-orange focus:ring-2 focus:ring-orange-100';
+const claseEtiqueta = 'mb-1 block text-sm font-semibold text-aqua-blue';
+
 const Candidatos = () => {
   const navigate = useNavigate();
   const puede = usePuede();
@@ -28,6 +32,10 @@ const Candidatos = () => {
   const puedeEditar = puede(PERMISOS.EDITAR_CANDIDATO);
   const puedeSolicitar = puede(PERMISOS.CREAR_SOLICITUD);
   const puedeEliminar = puede(PERMISOS.ELIMINAR_CANDIDATO);
+
+  // Operaciones recibe a los candidatos que superaron la primera etapa: por defecto ve solo los "Apto".
+  const esOperaciones = useContext(AuthContext)?.rol === ROLES.OPERACIONES;
+  const [soloAptos, setSoloAptos] = useState(esOperaciones);
 
   const [candidatos, setCandidatos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -44,6 +52,7 @@ const Candidatos = () => {
   const [modalEliminar, setModalEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState('');
+  const [confirmacionNombre, setConfirmacionNombre] = useState('');
 
   useEffect(() => {
     let activo = true;
@@ -128,20 +137,34 @@ const Candidatos = () => {
 
   // Elimina en Supabase y solo entonces quita la fila de la lista local.
   const confirmarEliminacion = async () => {
-    if (eliminando) return;
+    if (eliminando || !nombreConfirmado) return;
     setErrorEliminar('');
     setEliminando(true);
     try {
       await eliminarCandidato(modalEliminar.id);
       setCandidatos((lista) => lista.filter((c) => c.id !== modalEliminar.id));
       lanzarNotificacion(`🗑️ Candidato ${modalEliminar.nombre} eliminado.`);
-      setModalEliminar(null);
+      cerrarEliminar();
     } catch (error) {
       setErrorEliminar(`No se pudo eliminar el candidato: ${error?.message ?? 'error desconocido'}`);
     } finally {
       setEliminando(false);
     }
   };
+
+  // Segunda verificación del borrado: el admin debe escribir el nombre del postulante.
+  const normalizarNombre = (texto) => String(texto ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const nombreConfirmado = Boolean(modalEliminar) &&
+    normalizarNombre(confirmacionNombre) === normalizarNombre(modalEliminar.nombre);
+
+  const cerrarEliminar = () => {
+    setModalEliminar(null);
+    setConfirmacionNombre('');
+  };
+
+  const visibles = esOperaciones && soloAptos
+    ? candidatos.filter((c) => normalizarEstado(c) === 'Apto')
+    : candidatos;
 
   const lanzarNotificacion = (msg) => {
     setNotificacion(msg);
@@ -153,22 +176,16 @@ const Candidatos = () => {
       
       {/* Notificación flotante superior */}
       {notificacion && (
-        <div style={{
-          background: 'rgba(2, 27, 43, 0.95)',
-          color: '#FFFFFF',
-          padding: '14px 24px',
-          borderRadius: '10px',
-          boxShadow: '0 4px 20px rgba(0, 242, 254, 0.3)',
-          marginBottom: '20px',
-          borderLeft: `6px solid ${AQUACHILE_THEME.accent || '#00FFB2'}`,
-          border: '1px solid rgba(0, 242, 254, 0.3)',
-          fontWeight: '600',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
+        <div role="status" className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-green-200 border-l-4 border-l-green-600 bg-green-50 px-5 py-3 text-sm font-semibold text-green-900">
           <span>{notificacion}</span>
-          <button onClick={() => setNotificacion('')} style={{ background: 'transparent', border: 'none', color: '#FFF', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+          <button
+            type="button"
+            aria-label="Cerrar aviso"
+            onClick={() => setNotificacion('')}
+            className="bg-transparent border-none text-green-900 cursor-pointer text-lg"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -206,6 +223,26 @@ const Candidatos = () => {
         )}
       </div>
 
+      {esOperaciones && (
+        <div role="group" aria-label="Filtro de candidatos" className="flex gap-2 mb-4">
+          {[['Todos', false], ['Solo Aptos', true]].map(([etiqueta, valor]) => (
+            <button
+              key={etiqueta}
+              type="button"
+              aria-pressed={soloAptos === valor}
+              onClick={() => setSoloAptos(valor)}
+              className={`px-4 py-2 rounded-lg text-sm font-bold border cursor-pointer ${
+                soloAptos === valor
+                  ? 'bg-aqua-blue text-white border-aqua-blue'
+                  : 'bg-white text-aqua-blue border-gray-200'
+              }`}
+            >
+              {etiqueta}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Tabla (mismo estilo que Solicitudes) */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
         <table className="w-full min-w-[760px] border-collapse text-left">
@@ -225,9 +262,11 @@ const Candidatos = () => {
               <tr><td colSpan="7" className="p-6 text-center text-gray-500">Cargando candidatos...</td></tr>
             ) : errorCarga ? (
               <tr><td colSpan="7" role="alert" className="p-6 text-center text-red-700">{errorCarga}</td></tr>
-            ) : candidatos.length === 0 ? (
-              <tr><td colSpan="7" className="p-6 text-center text-gray-500">No hay candidatos registrados.</td></tr>
-            ) : candidatos.map((c) => (
+            ) : visibles.length === 0 ? (
+              <tr><td colSpan="7" className="p-6 text-center text-gray-500">
+                {candidatos.length === 0 ? 'No hay candidatos registrados.' : 'No hay candidatos en estado Apto.'}
+              </td></tr>
+            ) : visibles.map((c) => (
               <tr key={c.id} className="border-b border-gray-100 text-sm">
                 <td className="px-5 py-4 font-bold text-aqua-blue">{c.nombre}</td>
                 <td className="px-5 py-4 text-gray-700">{c.rut}</td>
@@ -242,6 +281,17 @@ const Candidatos = () => {
                     <BotonIcono icono={IconoVer} etiqueta={`Ver CV de ${c.nombre}`} tono="gris" href={c.cv_url} />
                   ) : (
                     <span className="text-gray-500 text-xs">Sin adjunto</span>
+                  )}
+                  {c.drive_folder_url && (
+                    <a
+                      href={c.drive_folder_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Carpeta Drive de ${c.nombre}`}
+                      className="block mt-1 text-xs font-semibold text-blue-600 hover:underline"
+                    >
+                      Carpeta Drive
+                    </a>
                   )}
                 </td>
                 <td className="px-5 py-4">
@@ -281,6 +331,7 @@ const Candidatos = () => {
                         tono="rojo"
                         onClick={() => {
                           setErrorEliminar('');
+                          setConfirmacionNombre('');
                           setModalEliminar(c);
                         }}
                       />
@@ -295,378 +346,158 @@ const Candidatos = () => {
 
       {/* --- MODAL EDITAR CANDIDATO --- */}
       {modalEditar && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(1, 10, 18, 0.85)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: '#041B2D',
-            border: '1px solid rgba(0, 242, 254, 0.4)',
-            borderRadius: '14px',
-            padding: '28px',
-            maxWidth: '460px',
-            width: '90%',
-            boxShadow: '0 10px 40px rgba(0, 242, 254, 0.2)'
-          }}>
-            <h3 style={{
-              margin: '0 0 18px 0',
-              color: AQUACHILE_THEME.primary || '#00F2FE',
-              fontSize: '20px',
-              fontWeight: '800',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-              paddingBottom: '10px'
-            }}>
-              Editar Candidato
-            </h3>
-            
-            <form onSubmit={guardarEdicion} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: '#E2E8F0', display: 'block', marginBottom: '6px' }}>
-                  Nombre Completo:
-                </label>
-                <input
-                  type="text"
-                  value={modalEditar.nombre}
-                  onChange={(e) => setModalEditar({ ...modalEditar, nombre: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(0, 242, 254, 0.3)',
-                    background: '#020F1D',
-                    color: '#FFFFFF',
-                    fontSize: '15px',
-                    fontWeight: '600',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: '#E2E8F0', display: 'block', marginBottom: '6px' }}>
-                  Cargo al que postula:
-                </label>
-                <input
-                  type="text"
-                  value={modalEditar.cargo}
-                  onChange={(e) => setModalEditar({ ...modalEditar, cargo: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(0, 242, 254, 0.3)',
-                    background: '#020F1D',
-                    color: '#FFFFFF',
-                    fontSize: '15px',
-                    fontWeight: '600',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: '#E2E8F0', display: 'block', marginBottom: '6px' }}>
-                  Correo Electrónico (sin espacios):
-                </label>
-                <input
-                  type="email"
-                  value={modalEditar.email}
-                  /* Filtra espacios automáticamente al pegar o escribir */
-                  onChange={(e) => {
-                    const textoLimpio = e.target.value.replace(/\s/g, '');
-                    setModalEditar({ ...modalEditar, email: textoLimpio });
-                    if (errorEmail) setErrorEmail('');
-                  }}
-                  /* Bloquea la barra espaciadora en vivo */
-                  onKeyDown={(e) => {
-                    if (e.key === ' ' || e.code === 'Space') {
-                      e.preventDefault();
-                    }
-                  }}
-                  placeholder="ejemplo@aquachile.cl"
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: errorEmail ? '1px solid #FF4B4B' : '1px solid rgba(0, 242, 254, 0.3)',
-                    background: '#020F1D',
-                    color: '#FFFFFF',
-                    fontSize: '15px',
-                    fontWeight: '600',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                  required
-                />
-                {errorEmail && (
-                  <span style={{ color: '#FF7B7B', fontSize: '12px', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
-                    {errorEmail}
-                  </span>
-                )}
-              </div>
-
-              {errorGuardado && (
-                <div role="alert" style={{ color: '#FF7B7B', fontSize: '13px', fontWeight: 'bold', border: '1px solid rgba(255, 123, 123, 0.5)', borderRadius: '8px', padding: '10px 12px' }}>
-                  {errorGuardado}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-                <button
-                  type="button"
-                  disabled={guardandoEdicion}
-                  onClick={() => {
-                    setErrorEmail('');
-                    setErrorGuardado('');
-                    setModalEditar(null);
-                  }}
-                  style={{
-                    padding: '10px 18px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    color: '#FFFFFF',
-                    cursor: guardandoEdicion ? 'not-allowed' : 'pointer',
-                    opacity: guardandoEdicion ? 0.5 : 1,
-                    fontWeight: '600',
-                    fontSize: '14px'
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={guardandoEdicion}
-                  style={{
-                    padding: '10px 22px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
-                    color: '#021120',
-                    fontWeight: '800',
-                    fontSize: '14px',
-                    cursor: guardandoEdicion ? 'wait' : 'pointer',
-                    opacity: guardandoEdicion ? 0.7 : 1,
-                    boxShadow: '0 0 14px rgba(0, 242, 254, 0.4)'
-                  }}
-                >
-                  {guardandoEdicion ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL CONFIRMAR ELIMINACIÓN (solo admin) --- */}
-      {modalEliminar && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(1, 10, 18, 0.85)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="titulo-eliminar"
-            style={{
-              background: '#041B2D',
-              border: '1px solid rgba(255, 123, 123, 0.5)',
-              borderRadius: '14px',
-              padding: '28px',
-              maxWidth: '460px',
-              width: '90%',
-              boxShadow: '0 10px 40px rgba(255, 75, 75, 0.2)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <span style={{ color: '#FF7B7B', display: 'flex' }}><IconoEliminar className="w-7 h-7" /></span>
-              <h3 id="titulo-eliminar" style={{ margin: 0, color: '#FFFFFF', fontSize: '20px', fontWeight: '800' }}>
-                Eliminar candidato
-              </h3>
+        <Modal titulo="Editar Candidato" idTitulo="titulo-editar" icono={<IconoEditar className="w-6 h-6" />}>
+          <form onSubmit={guardarEdicion} className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="edit-nombre" className={claseEtiqueta}>Nombre Completo:</label>
+              <input
+                id="edit-nombre"
+                type="text"
+                value={modalEditar.nombre}
+                onChange={(e) => setModalEditar({ ...modalEditar, nombre: e.target.value })}
+                className={claseCampo}
+                required
+              />
             </div>
 
-            <p style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: '1.6', margin: '0 0 8px 0' }}>
-              ¿Estás seguro de que deseas eliminar a este candidato?
-            </p>
-            <p style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: '1.6', margin: '0 0 20px 0' }}>
-              <strong style={{ color: '#FFFFFF' }}>{modalEliminar.nombre}</strong> ({modalEliminar.rut}).
-              Esta acción no se puede deshacer.
-            </p>
+            <div>
+              <label htmlFor="edit-cargo" className={claseEtiqueta}>Cargo al que postula:</label>
+              <input
+                id="edit-cargo"
+                type="text"
+                value={modalEditar.cargo}
+                onChange={(e) => setModalEditar({ ...modalEditar, cargo: e.target.value })}
+                className={claseCampo}
+                required
+              />
+            </div>
 
-            {errorEliminar && (
-              <div role="alert" style={{ color: '#FF7B7B', fontSize: '13px', fontWeight: 'bold', border: '1px solid rgba(255, 123, 123, 0.5)', borderRadius: '8px', padding: '10px 12px', marginBottom: '16px' }}>
-                {errorEliminar}
-              </div>
-            )}
+            <div>
+              <label htmlFor="edit-email" className={claseEtiqueta}>Correo Electrónico (sin espacios):</label>
+              <input
+                id="edit-email"
+                type="email"
+                value={modalEditar.email}
+                /* Filtra espacios automáticamente al pegar o escribir */
+                onChange={(e) => {
+                  const textoLimpio = e.target.value.replace(/\s/g, '');
+                  setModalEditar({ ...modalEditar, email: textoLimpio });
+                  if (errorEmail) setErrorEmail('');
+                }}
+                /* Bloquea la barra espaciadora en vivo */
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.code === 'Space') e.preventDefault();
+                }}
+                placeholder="ejemplo@aquachile.cl"
+                className={`${claseCampo} ${errorEmail ? 'border-red-500' : ''}`}
+                required
+              />
+              {errorEmail && (
+                <span className="block mt-1 text-xs font-bold text-red-700">{errorEmail}</span>
+              )}
+            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button
-                type="button"
-                disabled={eliminando}
-                onClick={() => setModalEliminar(null)}
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: '#FFFFFF',
-                  cursor: eliminando ? 'not-allowed' : 'pointer',
-                  opacity: eliminando ? 0.5 : 1,
-                  fontWeight: '600'
+            {errorGuardado && <Alerta>{errorGuardado}</Alerta>}
+
+            <div className="flex justify-end gap-3 mt-2">
+              <BotonModal
+                variante="secundario"
+                disabled={guardandoEdicion}
+                onClick={() => {
+                  setErrorEmail('');
+                  setErrorGuardado('');
+                  setModalEditar(null);
                 }}
               >
                 Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={eliminando}
-                onClick={confirmarEliminacion}
-                style={{
-                  padding: '10px 22px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: '#dc2626',
-                  color: '#FFFFFF',
-                  cursor: eliminando ? 'wait' : 'pointer',
-                  opacity: eliminando ? 0.7 : 1,
-                  fontWeight: '800'
-                }}
-              >
-                {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
-              </button>
+              </BotonModal>
+              <BotonModal type="submit" disabled={guardandoEdicion}>
+                {guardandoEdicion ? 'Guardando...' : 'Guardar Cambios'}
+              </BotonModal>
             </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* --- MODAL CONFIRMAR ELIMINACIÓN (solo admin): exige escribir el nombre del postulante --- */}
+      {modalEliminar && (
+        <Modal
+          titulo="Eliminar candidato"
+          idTitulo="titulo-eliminar"
+          tono="rojo"
+          icono={<IconoEliminar className="w-7 h-7" />}
+        >
+          <p className="text-sm leading-relaxed text-gray-700 m-0 mb-2">
+            ¿Estás seguro de que deseas eliminar a este candidato?
+          </p>
+          <p className="text-sm leading-relaxed text-gray-700 m-0 mb-4">
+            <strong className="text-aqua-blue">{modalEliminar.nombre}</strong> ({modalEliminar.rut}).
+            Esta acción no se puede deshacer.
+          </p>
+
+          <label htmlFor="confirmar-nombre" className={claseEtiqueta}>
+            Para confirmar, escribe el nombre completo del postulante:
+          </label>
+          <input
+            id="confirmar-nombre"
+            type="text"
+            autoComplete="off"
+            value={confirmacionNombre}
+            onChange={(e) => setConfirmacionNombre(e.target.value)}
+            placeholder={modalEliminar.nombre}
+            disabled={eliminando}
+            className={`${claseCampo} mb-1`}
+          />
+          <p className="text-xs text-gray-500 m-0 mb-4">
+            {nombreConfirmado
+              ? 'El nombre coincide. Ya puedes eliminar.'
+              : 'El botón se habilita cuando el nombre coincide exactamente.'}
+          </p>
+
+          {errorEliminar && <div className="mb-4"><Alerta>{errorEliminar}</Alerta></div>}
+
+          <div className="flex justify-end gap-3">
+            <BotonModal variante="secundario" disabled={eliminando} onClick={cerrarEliminar}>
+              Cancelar
+            </BotonModal>
+            <BotonModal
+              variante="peligro"
+              disabled={eliminando || !nombreConfirmado}
+              onClick={confirmarEliminacion}
+            >
+              {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
+            </BotonModal>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* --- MODAL SOLICITAR EVALUACIÓN --- */}
       {modalSolicitud && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(1, 10, 18, 0.85)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: '#041B2D',
-            border: '1px solid rgba(0, 242, 254, 0.4)',
-            borderRadius: '14px',
-            padding: '28px',
-            maxWidth: '500px',
-            width: '90%',
-            boxShadow: '0 10px 40px rgba(0, 242, 254, 0.2)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div style={{
-                background: AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
-                color: '#021120',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '900',
-                fontSize: '14px',
-                boxShadow: '0 0 12px rgba(0, 242, 254, 0.5)'
-              }}>AI</div>
-              <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '20px', fontWeight: '800' }}>
-                Iniciar Flujo Automatizado
-              </h3>
-            </div>
-            
-            <p style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: '1.6' }}>
-              ¿Deseas generar la orden de evaluación psicolaboral para <strong style={{ color: AQUACHILE_THEME.primary || '#00F2FE' }}>{modalSolicitud.nombre}</strong>?
-            </p>
+        <Modal titulo="Solicitar evaluación" idTitulo="titulo-solicitar" icono={<IconoEvaluar className="w-7 h-7" />}>
+          <p className="text-sm leading-relaxed text-gray-700 m-0 mb-4">
+            ¿Deseas generar la orden de evaluación psicolaboral para{' '}
+            <strong className="text-aqua-blue">{modalSolicitud.nombre}</strong>?
+          </p>
 
-            <div style={{
-              background: 'rgba(2, 15, 29, 0.7)',
-              padding: '14px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              marginBottom: '22px',
-              borderLeft: `4px solid ${AQUACHILE_THEME.accent || '#00FFB2'}`,
-              border: '1px solid rgba(255, 255, 255, 0.08)'
-            }}>
-              <strong style={{ color: AQUACHILE_THEME.accent || '#00FFB2' }}>Qué ocurrirá:</strong>
-              <ul style={{ margin: '8px 0 0 16px', padding: 0, color: '#CBD5E1', lineHeight: '1.5' }}>
-                <li>El estado del candidato pasará a <strong>En proceso</strong>.</li>
-                <li>Quedará disponible para evaluar en Solicitudes ({modalSolicitud.familia}).</li>
-              </ul>
-            </div>
-
-            {errorSolicitud && (
-              <div role="alert" style={{ color: '#FF7B7B', fontSize: '13px', fontWeight: 'bold', border: '1px solid rgba(255, 123, 123, 0.5)', borderRadius: '8px', padding: '10px 12px', marginBottom: '16px' }}>
-                {errorSolicitud}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button
-                disabled={solicitando}
-                onClick={() => setModalSolicitud(null)}
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: '#FFFFFF',
-                  cursor: solicitando ? 'not-allowed' : 'pointer',
-                  opacity: solicitando ? 0.5 : 1,
-                  fontWeight: '600'
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                disabled={solicitando}
-                onClick={confirmarSolicitudEvaluacion}
-                style={{
-                  padding: '10px 22px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
-                  color: '#021120',
-                  cursor: solicitando ? 'wait' : 'pointer',
-                  opacity: solicitando ? 0.7 : 1,
-                  fontWeight: '800',
-                  boxShadow: '0 0 14px rgba(0, 242, 254, 0.4)'
-                }}
-              >
-                {solicitando ? 'Solicitando...' : 'Confirmar y Derivar'}
-              </button>
-            </div>
+          <div className="rounded-lg bg-aqua-light border border-gray-200 border-l-4 border-l-aqua-orange p-4 text-sm mb-5">
+            <strong className="text-aqua-blue">Qué ocurrirá:</strong>
+            <ul className="mt-2 mb-0 pl-5 text-gray-700 leading-relaxed">
+              <li>El estado del candidato pasará a <strong>En proceso</strong>.</li>
+              <li>Quedará disponible para evaluar en Solicitudes ({modalSolicitud.familia}).</li>
+            </ul>
           </div>
-        </div>
+
+          {errorSolicitud && <div className="mb-4"><Alerta>{errorSolicitud}</Alerta></div>}
+
+          <div className="flex justify-end gap-3">
+            <BotonModal variante="secundario" disabled={solicitando} onClick={() => setModalSolicitud(null)}>
+              Cancelar
+            </BotonModal>
+            <BotonModal disabled={solicitando} onClick={confirmarSolicitudEvaluacion}>
+              {solicitando ? 'Solicitando...' : 'Confirmar y Derivar'}
+            </BotonModal>
+          </div>
+        </Modal>
       )}
 
     </div>

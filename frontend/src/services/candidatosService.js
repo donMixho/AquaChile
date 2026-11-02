@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { crearCarpetaDrive } from './driveService';
 
 export const ESTADOS_CANDIDATO = ['Pendiente', 'En proceso', 'Apto', 'No apto'];
 
@@ -123,7 +124,7 @@ export const eliminarCandidato = async (id) => {
   }
 
   if (!data || data.length === 0) {
-    throw new Error('No se eliminó ningún registro. Revisa que exista y que tengas permiso para eliminarlo.');
+    throw new Error('No se eliminó ningún registro. Revisa que exista y que tu usuario tenga el rol admin en la base (docs/asignar_roles_usuarios.sql).');
   }
 
   return data[0];
@@ -149,6 +150,19 @@ export const subirCurriculum = async (archivo, rut) => {
   return { ruta, url: data.publicUrl };
 };
 
+// La carpeta de Drive es opcional: si no se crea o no se puede guardar el enlace, el candidato
+// ya registrado se devuelve igual (sin drive_folder_url).
+const asociarCarpetaDrive = async (candidato) => {
+  const folderUrl = await crearCarpetaDrive({ rut: candidato.rut, nombre: candidato.nombre_completo });
+  if (!folderUrl) return candidato;
+
+  try {
+    return await actualizarPorId(candidato.id, { drive_folder_url: folderUrl });
+  } catch {
+    return candidato;
+  }
+};
+
 export const crearCandidato = async (formData, archivoCv = null) => {
   const cv = archivoCv ? await subirCurriculum(archivoCv, formData.rut) : null;
 
@@ -171,5 +185,5 @@ export const crearCandidato = async (formData, archivoCv = null) => {
     throw error;
   }
 
-  return data;
+  return asociarCarpetaDrive(data);
 };
