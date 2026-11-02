@@ -1,40 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { crearCandidato } from '../services/candidatosService';
-
-const formatearRut = (valor) => {
-  const caracteres = valor.toUpperCase().replace(/[^0-9K]/g, '');
-  const tieneVerificador = caracteres.length > 8 || caracteres.endsWith('K');
-  const cuerpo = (tieneVerificador ? caracteres.slice(0, -1) : caracteres)
-    .replace(/\D/g, '')
-    .slice(0, 8);
-  const verificador = tieneVerificador
-    ? caracteres.slice(-1).replace(/[^0-9K]/g, '')
-    : '';
-  const cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
-  return verificador
-    ? `${cuerpoFormateado}-${verificador}`
-    : cuerpoFormateado;
-};
-
-// Valida largo y dígito verificador (módulo 11) de un RUT ya formateado o sin formato.
-const rutValido = (rut) => {
-  const limpio = rut.replace(/[.\-\s]/g, '').toUpperCase();
-  if (!/^\d{7,8}[0-9K]$/.test(limpio)) return false;
-
-  const cuerpo = limpio.slice(0, -1);
-  let suma = 0;
-  let multiplicador = 2;
-  for (let i = cuerpo.length - 1; i >= 0; i -= 1) {
-    suma += Number(cuerpo[i]) * multiplicador;
-    multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
-  }
-  const resto = 11 - (suma % 11);
-  const esperado = resto === 11 ? '0' : resto === 10 ? 'K' : String(resto);
-
-  return limpio.slice(-1) === esperado;
-};
+import { formatearRut, rutValido } from '../utils/rut';
 
 const normalizarEmail = (valor) => valor.replace(/\s/g, '').toLowerCase();
 

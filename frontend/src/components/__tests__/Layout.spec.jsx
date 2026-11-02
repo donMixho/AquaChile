@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Layout from '../Layout';
+import { conRol } from '../../test/helpers';
 
 const renderLayout = (ruta = '/') =>
   render(
@@ -55,5 +56,23 @@ describe('Layout', () => {
 
     expect(screen.queryByRole('navigation', { name: 'Navegación móvil', hidden: true })).toBeNull();
     expect(screen.getByText('contenido-solicitudes')).toBeTruthy();
+  });
+
+  [['admin', 'Administrador'], ['reclutador', 'Reclutador'], ['operaciones', 'Operaciones']].forEach(([rol, texto]) => {
+    it(`73. Muestra el rol ${rol} con icono de usuario en el encabezado.`, () => {
+      render(conRol(
+        <MemoryRouter><Routes><Route path="/" element={<Layout />} /></Routes></MemoryRouter>, rol
+      ));
+
+      const insignia = screen.getByTestId('rol-actual');
+      expect(insignia.textContent).toBe(texto);
+      expect(insignia.querySelector('svg')).toBeTruthy();
+    });
+  });
+
+  it('74. Sin sesión de rol no muestra insignia.', () => {
+    renderLayout();
+
+    expect(screen.queryByTestId('rol-actual')).toBeNull();
   });
 });

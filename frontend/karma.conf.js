@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 
 module.exports = function (config) {
   config.set({
@@ -15,6 +16,12 @@ module.exports = function (config) {
     webpack: {
       mode: 'development',
       devtool: 'inline-source-map',
+      // Webhook ficticio: las pruebas espían fetch, nunca se llama a Google.
+      plugins: [
+        new webpack.DefinePlugin({
+          'import.meta.env.VITE_GOOGLE_DRIVE_WEBHOOK_URL': JSON.stringify('https://webhook.test/drive')
+        })
+      ],
       resolve: {
         extensions: ['.js', '.jsx', '.json'],
         // El cliente real usa import.meta.env y red: en pruebas se sustituye por un stub espiable.

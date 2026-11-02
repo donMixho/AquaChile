@@ -36,3 +36,10 @@ const PERMISOS_POR_ROL = {
 
 // Un rol desconocido o ausente no tiene ningún permiso.
 export const tienePermiso = (rol, permiso) => Boolean(PERMISOS_POR_ROL[rol]?.includes(permiso));
+
+// Nombre visible de cada rol (insignia del encabezado).
+export const ETIQUETAS_ROL = {
+  [ROLES.ADMIN]: 'Administrador',
+  [ROLES.RECLUTADOR]: 'Reclutador',
+  [ROLES.OPERACIONES]: 'Operaciones'
+};

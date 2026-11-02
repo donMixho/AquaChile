@@ -1,306 +1,92 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { AQUACHILE_THEME } from '../theme';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { usePuede } from '../context/AuthContext';
+import { PERMISOS } from '../context/permisos';
+import { IconoEvaluar } from '../components/Iconos';
+import { obtenerSolicitudPorId } from '../services/solicitudesService';
+import Alerta from '../components/Alerta';
+import InsigniaSolicitud from '../components/InsigniaSolicitud';
+
+const Dato = ({ etiqueta, children }) => (
+  <div>
+    <dt className="text-xs font-semibold uppercase tracking-wider text-slate-600">{etiqueta}</dt>
+    <dd className="m-0 mt-1 text-slate-900">{children}</dd>
+  </div>
+);
 
 const DetalleSolicitud = () => {
-  const navigate = useNavigate();
   const { id } = useParams();
+  const puedeEvaluar = usePuede()(PERMISOS.EVALUAR);
+  const [solicitud, setSolicitud] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState('');
 
-  // Datos simulados del candidato (reemplaza datos fijos anteriores)
-  const [candidato] = useState({
-    nombre: 'Valentina Ruiz González',
-    correo: 'v.ruiz.postulaciones@aquachile-demo.cl',
-    telefono: '+56 9 7412 8593',
-    cargo: 'Analista de Operaciones',
-    familia: 'Operaciones & Logística',
-    cvUrl: '#'
-  });
+  useEffect(() => {
+    let activo = true;
 
-  // Estados interactivos para el registro de evaluación
-  const [estado, setEstado] = useState('En proceso');
-  const [fecha, setFecha] = useState('');
-  const [observaciones, setObservaciones] = useState('');
-  const [error, setError] = useState('');
-  const [exito, setExito] = useState(false);
+    obtenerSolicitudPorId(id)
+      .then((dato) => {
+        if (activo) setSolicitud(dato);
+      })
+      .catch((error) => {
+        if (activo) setErrorCarga(error.message);
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!fecha || !observaciones.trim()) {
-      setError('Por favor, selecciona una fecha y registra las observaciones de la evaluación.');
-      setExito(false);
-      return;
-    }
-
-    setError('');
-    setExito(true);
-    console.log("Evaluación guardada exitosamente:", { id, estado, fecha, observaciones });
-
-    setTimeout(() => {
-      setExito(false);
-    }, 3500);
-  };
+    return () => {
+      activo = false;
+    };
+  }, [id]);
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', fontFamily: "'Segoe UI', Roboto, sans-serif" }}>
-      
-      {/* Título de la vista con máximo contraste */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{
-          color: '#FFFFFF',
-          fontSize: '28px',
-          fontWeight: '800',
-          margin: 0,
-          textShadow: AQUACHILE_THEME.textGlow || '0 0 10px rgba(0,242,254,0.5)'
-        }}>
-          Detalle de Solicitud y Evaluación {id ? `(#${id})` : ''}
-        </h1>
-        <p style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', margin: '6px 0 0 0', fontSize: '14px' }}>
-          Expediente del postulante y registro del informe psicolaboral.
-        </p>
+    <div className="max-w-3xl mx-auto">
+      <div className="flex flex-wrap gap-3" aria-label="Acciones de la solicitud" role="group">
+        <Link
+          to="/solicitudes"
+          aria-label="Volver al listado de solicitudes"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 no-underline transition-all hover:bg-slate-50 hover:shadow-sm"
+        >
+          <span aria-hidden="true">←</span> Volver
+        </Link>
+        {puedeEvaluar && (
+          <Link
+            to="/solicitudes"
+            state={{ pestana: 'candidatos' }}
+            aria-label="Evaluar candidatos de esta solicitud"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#F26522] px-4 py-2 text-sm font-semibold text-white no-underline shadow-sm transition-all hover:bg-[#d9561a] hover:shadow"
+          >
+            <IconoEvaluar className="w-4 h-4" /> Evaluar candidatos
+          </Link>
+        )}
       </div>
 
-      {/* Grid de 2 columnas estilo Glassmorphism */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '24px',
-        alignItems: 'start'
-      }}>
-        
-        {/* Columna Izquierda: Antecedentes del Candidato */}
-        <div style={{
-          background: AQUACHILE_THEME.surface || 'rgba(7, 30, 49, 0.75)',
-          backdropFilter: 'blur(16px)',
-          border: `1px solid ${AQUACHILE_THEME.surfaceBorder || 'rgba(0, 242, 254, 0.25)'}`,
-          borderRadius: '14px',
-          padding: '24px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-        }}>
-          <h2 style={{
-            color: AQUACHILE_THEME.primary || '#00F2FE',
-            fontSize: '18px',
-            marginTop: 0,
-            marginBottom: '16px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-            paddingBottom: '10px'
-          }}>
-            Antecedentes del Candidato
-          </h2>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '14px' }}>
-            <div>
-              <span style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', display: 'block', fontSize: '12px' }}>Nombre</span>
-              <strong style={{ color: '#FFFFFF', fontSize: '16px' }}>{candidato.nombre}</strong>
-            </div>
-
-            <div>
-              <span style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', display: 'block', fontSize: '12px' }}>Correo Electrónico</span>
-              <span style={{ color: '#E2E8F0' }}>{candidato.correo}</span>
-            </div>
-
-            <div>
-              <span style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', display: 'block', fontSize: '12px' }}>Teléfono</span>
-              <span style={{ color: '#E2E8F0' }}>{candidato.telefono}</span>
-            </div>
-
-            <div>
-              <span style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', display: 'block', fontSize: '12px' }}>Cargo al que postula</span>
-              <strong style={{ color: '#FFFFFF' }}>{candidato.cargo}</strong>
-            </div>
-
-            <div>
-              <span style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', display: 'block', fontSize: '12px', marginBottom: '4px' }}>Familia de cargo</span>
-              <span style={{
-                background: 'rgba(0, 242, 254, 0.15)',
-                color: AQUACHILE_THEME.primary || '#00F2FE',
-                padding: '4px 10px',
-                borderRadius: '12px',
-                fontSize: '12px',
-                fontWeight: '600',
-                border: '1px solid rgba(0, 242, 254, 0.3)',
-                display: 'inline-block'
-              }}>
-                {candidato.familia}
-              </span>
-            </div>
-
-            <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              <span style={{ color: AQUACHILE_THEME.textMuted || '#94B4CB', display: 'block', fontSize: '12px', marginBottom: '4px' }}>Documentación</span>
-              <a href={candidato.cvUrl} onClick={(e) => { e.preventDefault(); alert("Descargando CV_Valentina_Ruiz.pdf"); }} style={{ color: AQUACHILE_THEME.accent || '#00FFB2', textDecoration: 'none', fontWeight: 'bold', fontSize: '13px' }}>
-                📄 Ver Curriculum Vitae (CV)
-              </a>
-            </div>
+      {cargando ? (
+        <p className="mt-6 text-slate-600">Cargando solicitud...</p>
+      ) : errorCarga ? (
+        <div className="mt-6"><Alerta>{errorCarga}</Alerta></div>
+      ) : !solicitud ? (
+        <p className="mt-6 text-slate-600" role="status">La solicitud #{id} no existe.</p>
+      ) : (
+        <div className="mt-6 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-slate-900 font-bold text-2xl m-0">{solicitud.titulo}</h1>
+            <InsigniaSolicitud estado={solicitud.estado} />
           </div>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-6">
+            <Dato etiqueta="Cargo">{solicitud.cargo}</Dato>
+            <Dato etiqueta="Familia de cargo">{solicitud.familia_cargo}</Dato>
+            <Dato etiqueta="Vacantes">{solicitud.vacantes}</Dato>
+            <Dato etiqueta="Fecha">
+              {solicitud.created_at ? new Date(solicitud.created_at).toLocaleDateString('en-CA') : '—'}
+            </Dato>
+            <div className="sm:col-span-2">
+              <Dato etiqueta="Descripción">{solicitud.descripcion || 'Sin descripción.'}</Dato>
+            </div>
+          </dl>
         </div>
-
-        {/* Columna Derecha: Formulario de Evaluación */}
-        <div style={{
-          background: AQUACHILE_THEME.surface || 'rgba(7, 30, 49, 0.75)',
-          backdropFilter: 'blur(16px)',
-          border: `1px solid ${AQUACHILE_THEME.surfaceBorder || 'rgba(0, 242, 254, 0.25)'}`,
-          borderRadius: '14px',
-          padding: '24px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-        }}>
-          <h2 style={{
-            color: AQUACHILE_THEME.primary || '#00F2FE',
-            fontSize: '18px',
-            marginTop: 0,
-            marginBottom: '16px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-            paddingBottom: '10px'
-          }}>
-            Registro de Evaluación
-          </h2>
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            
-            {/* Estado */}
-            <div>
-              <label style={{ display: 'block', color: '#E2E8F0', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                Estado de la solicitud:
-              </label>
-              <select
-                value={estado}
-                onChange={(e) => setEstado(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  background: 'rgba(2, 17, 32, 0.8)',
-                  color: '#FFFFFF',
-                  outline: 'none',
-                  fontSize: '14px'
-                }}
-              >
-                <option value="En proceso" style={{ background: '#021120', color: '#FFF' }}>En proceso</option>
-                <option value="Finalizada" style={{ background: '#021120', color: '#FFF' }}>Finalizada</option>
-                <option value="Pendiente" style={{ background: '#021120', color: '#FFF' }}>Pendiente</option>
-              </select>
-            </div>
-
-            {/* Fecha */}
-            <div>
-              <label style={{ display: 'block', color: '#E2E8F0', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                Fecha de evaluación:
-              </label>
-              <input
-                type="date"
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  background: 'rgba(2, 17, 32, 0.8)',
-                  color: '#FFFFFF',
-                  outline: 'none',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                  colorScheme: 'dark'
-                }}
-              />
-            </div>
-
-            {/* Observaciones */}
-            <div>
-              <label style={{ display: 'block', color: '#E2E8F0', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                Observaciones y Resultados:
-              </label>
-              <textarea
-                rows="4"
-                value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
-                placeholder="Ingrese las conclusiones de la entrevista y evaluación psicolaboral..."
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  background: 'rgba(2, 17, 32, 0.8)',
-                  color: '#FFFFFF',
-                  outline: 'none',
-                  fontSize: '14px',
-                  resize: 'vertical',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            {/* Alertas */}
-            {error && (
-              <div style={{
-                background: 'rgba(255, 75, 75, 0.15)',
-                border: '1px solid #FF4B4B',
-                color: '#FF8080',
-                padding: '10px',
-                borderRadius: '8px',
-                fontSize: '13px'
-              }}>
-                {error}
-              </div>
-            )}
-
-            {exito && (
-              <div style={{
-                background: 'rgba(0, 255, 178, 0.15)',
-                border: '1px solid #00FFB2',
-                color: '#00FFB2',
-                padding: '10px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 'bold'
-              }}>
-                ¡Evaluación registrada y guardada exitosamente!
-              </div>
-            )}
-
-            {/* Botones */}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-              <button
-                type="submit"
-                style={{
-                  flex: 1,
-                  background: AQUACHILE_THEME.glowButton || 'linear-gradient(135deg, #00F2FE 0%, #008289 100%)',
-                  color: '#021120',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  fontWeight: '800',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  boxShadow: '0 0 16px rgba(0, 242, 254, 0.4)'
-                }}
-              >
-                Guardar Evaluación
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/solicitudes')}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: '#FFFFFF',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '8px',
-                  padding: '12px 18px',
-                  fontWeight: '600',
-                  fontSize: '14px',
-                  cursor: 'pointer'
-                }}
-              >
-                Volver al listado
-              </button>
-            </div>
-
-          </form>
-        </div>
-
-      </div>
-
+      )}
     </div>
   );
 };
