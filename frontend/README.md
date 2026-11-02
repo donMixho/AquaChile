@@ -29,14 +29,13 @@
 1. **Requisitos previos:** [Node.js](https://nodejs.org/) **18 o superior**, [Git](https://git-scm.com/) y npm (incluido con Node.js). Para las pruebas se necesita además Google Chrome.
 2. **Clonar el repositorio y entrar a la carpeta del frontend:**
    ```bash
-   git clone <url-del-repositorio>
+   git clone https://github.com/donMixho/AquaChile.git
    cd frontend
    ```
 3. **Instalar dependencias:**
    ```bash
    npm install
    ```
-4. **Configurar variables de entorno:** crear el archivo `.env` en la raíz de `frontend/`:
    ```env
    VITE_SUPABASE_URL=https://<tu-proyecto>.supabase.co
    VITE_SUPABASE_ANON_KEY=<tu-anon-key>
