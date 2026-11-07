@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 import Candidatos from '../Candidatos';
+import { AuthContext } from '../../context/AuthContext';
 import {
-  candidatosFixture, conRol, renderConRouter, simularConsulta, simularDelete, simularUpdate
+  candidatosFixture, conRol, renderConRouter, simularConsulta, simularUpdate
 } from '../../test/helpers';
 
 describe('Candidatos', () => {
@@ -120,180 +121,87 @@ describe('Candidatos', () => {
   });
 });
 
-describe('Candidatos: solicitar evaluación', () => {
+
+describe('Candidatos: entrevistar', () => {
   afterEach(cleanup);
 
-  const abrirSolicitud = async (opcionesUpdate, data = candidatosFixture) => {
-    const update = simularUpdate(opcionesUpdate);
-    simularConsulta({ data, update });
+  it('63. Quien está pendiente se entrevista desde un enlace directo a la entrevista.', async () => {
+    simularConsulta({ data: candidatosFixture });
     renderConRouter(<Candidatos />);
     await screen.findByText('Carlos Valenzuela');
-    fireEvent.click(screen.getByRole('button', { name: 'Solicitar evaluación de Juan Pérez González' }));
-    return update;
-  };
 
-  it('63. Confirmar guarda el estado En proceso en Supabase y actualiza la insignia.', async () => {
-    const update = await abrirSolicitud();
-    expect(screen.queryByText('En proceso', { selector: 'span' })).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar y Derivar' }));
-
-    expect(await screen.findByText(/Evaluación solicitada para Juan Pérez González/)).toBeTruthy();
-    expect(update).toHaveBeenCalledWith({ estado: 'En proceso' });
-    expect(screen.getByText('En proceso', { selector: 'span' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Confirmar y Derivar' })).toBeNull();
-    // Ya no se puede volver a solicitar para el mismo candidato.
-    const boton = screen.getByRole('button', { name: 'Evaluación ya solicitada (En proceso)' });
-    expect(boton.disabled).toBe(true);
+    const enlace = screen.getByRole('link', { name: 'Entrevistar a Juan Pérez González' });
+    expect(enlace.getAttribute('href')).toBe('/entrevista/1');
+    // Ya no existe el paso aparte de "solicitar evaluación": empezar la entrevista pone al candidato en proceso.
+    expect(screen.queryByRole('button', { name: /Solicitar evaluación/ })).toBeNull();
   });
 
-  it('64. Si Supabase falla muestra el error, mantiene el modal y no cambia la insignia.', async () => {
-    await abrirSolicitud({ error: new Error('permission denied') });
+  it('64. Quien ya está en proceso ofrece continuar la entrevista.', async () => {
+    simularConsulta({ data: [{ ...candidatosFixture[0], estado: 'En proceso' }, candidatosFixture[1]] });
+    renderConRouter(<Candidatos />);
+    await screen.findByText('María José Silva');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar y Derivar' }));
-
-    const alerta = await screen.findByRole('alert');
-    expect(alerta.textContent).toContain('No se pudo solicitar la evaluación: permission denied');
-    expect(screen.queryByText(/Evaluación solicitada para/)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Confirmar y Derivar' })).toBeTruthy();
-    expect(screen.queryByText('En proceso', { selector: 'span' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Continuar la entrevista de Juan Pérez González' })).toBeTruthy();
   });
 
-  it('65. Mientras guarda muestra "Solicitando..." y bloquea los botones.', async () => {
-    await abrirSolicitud({ pendiente: true });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar y Derivar' }));
-
-    const solicitando = await screen.findByRole('button', { name: 'Solicitando...' });
-    expect(solicitando.disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Cancelar' }).disabled).toBe(true);
-  });
-
-  it('66. No permite solicitar la evaluación de quien ya está en proceso o evaluado.', async () => {
+  it('65. Quien ya fue evaluado (Apto o No apto) no ofrece entrevistar.', async () => {
     simularConsulta({
       data: [
-        { ...candidatosFixture[0], estado: 'En proceso' },
-        { ...candidatosFixture[1], estado: 'Apto' },
+        { ...candidatosFixture[0], estado: 'Apto' },
+        { ...candidatosFixture[1], estado: 'No apto' },
         candidatosFixture[2]
       ]
     });
     renderConRouter(<Candidatos />);
     await screen.findByText('Carlos Valenzuela');
 
-    expect(screen.getByRole('button', { name: 'Evaluación ya solicitada (En proceso)' }).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Evaluación ya solicitada (Apto)' }).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Solicitar evaluación de Carlos Valenzuela' }).disabled).toBe(false);
+    const entrevistas = screen.queryAllByRole('link', { name: /^(Entrevistar a|Continuar la entrevista de)/ });
+    expect(entrevistas.map((e) => e.getAttribute('aria-label'))).toEqual(['Entrevistar a Carlos Valenzuela']);
+  });
+
+  it('66. La papelera ya no está en esta tabla: eliminar es del admin, desde Seguimiento.', async () => {
+    simularConsulta({ data: candidatosFixture });
+    renderConRouter(conRol(<Candidatos />, 'admin'));
+    await screen.findByText('Carlos Valenzuela');
+
+    expect(screen.queryAllByRole('button', { name: /^Eliminar candidato/ }).length).toBe(0);
   });
 });
 
-describe('Candidatos: eliminar (solo admin)', () => {
+describe('Candidatos: mis candidatos (reclutador)', () => {
   afterEach(cleanup);
 
-  const abrirEliminar = async (opcionesDelete, rol = 'admin') => {
-    const borrar = simularDelete(opcionesDelete);
-    simularConsulta({ data: candidatosFixture, borrar });
-    renderConRouter(conRol(<Candidatos />, rol));
-    // Operaciones parte filtrado en "Solo Aptos"; se pasa a "Todos" para comprobar las filas completas.
-    if (rol === 'operaciones') fireEvent.click(await screen.findByRole('button', { name: 'Todos' }));
-    await screen.findByText('Carlos Valenzuela');
-    return borrar;
+  const lista = [
+    { ...candidatosFixture[0], reclutador_id: 'yo' },
+    { ...candidatosFixture[1], reclutador_id: 'otra' },
+    { ...candidatosFixture[2], reclutador_id: null }
+  ];
+
+  const ver = () => {
+    simularConsulta({ data: lista });
+    return renderConRouter(
+      <AuthContext.Provider value={{ user: { id: 'yo' }, rol: 'reclutador', loading: false, signOut() {} }}>
+        <Candidatos />
+      </AuthContext.Provider>
+    );
   };
 
-  const pulsarPapelera = () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Eliminar candidato Juan Pérez González' }));
+  it('parte mostrando solo a sus candidatos.', async () => {
+    ver();
 
-  it('67. El admin ve la papelera roja en cada fila.', async () => {
-    await abrirEliminar();
-
-    const boton = screen.getByRole('button', { name: 'Eliminar candidato Juan Pérez González' });
-    expect(boton.className).toContain('hover:bg-red-50');
-    expect(screen.getAllByRole('button', { name: /^Eliminar candidato/ }).length).toBe(3);
+    expect(await screen.findByText('Juan Pérez González')).toBeTruthy();
+    expect(screen.queryByText('María José Silva')).toBeNull();
+    expect(screen.queryByText('Carlos Valenzuela')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Mis candidatos' }).getAttribute('aria-pressed')).toBe('true');
   });
 
-  ['reclutador', 'operaciones'].forEach((rol) => {
-    it(`67b. El rol ${rol} no ve la papelera.`, async () => {
-      await abrirEliminar({}, rol);
+  it('"Todos" muestra el resto, por ejemplo para revisar si alguien ya está registrado.', async () => {
+    ver();
+    await screen.findByText('Juan Pérez González');
 
-      expect(screen.queryAllByRole('button', { name: /^Eliminar candidato/ }).length).toBe(0);
-    });
-  });
+    fireEvent.click(screen.getByRole('button', { name: 'Todos' }));
 
-  const escribirNombre = (texto = 'Juan Pérez González') =>
-    fireEvent.change(screen.getByLabelText(/escribe el nombre completo/), { target: { value: texto } });
-
-  it('68b. "Sí, eliminar" sigue bloqueado hasta escribir el nombre exacto del postulante.', async () => {
-    const borrar = await abrirEliminar();
-    pulsarPapelera();
-    const confirmar = screen.getByRole('button', { name: 'Sí, eliminar' });
-    expect(confirmar.disabled).toBe(true);
-
-    escribirNombre('Juan Pérez');
-    expect(confirmar.disabled).toBe(true);
-
-    escribirNombre('  juan  pérez   gonzález ');
-    expect(confirmar.disabled).toBe(false);
-    expect(borrar).not.toHaveBeenCalled();
-  });
-
-  it('68. La papelera abre un modal de confirmación sin borrar nada todavía.', async () => {
-    const borrar = await abrirEliminar();
-
-    pulsarPapelera();
-
-    const dialogo = screen.getByRole('dialog');
-    expect(dialogo.textContent).toContain('¿Estás seguro de que deseas eliminar a este candidato?');
-    expect(dialogo.textContent).toContain('Juan Pérez González');
-    expect(borrar).not.toHaveBeenCalled();
-  });
-
-  it('69. Cancelar cierra el modal sin eliminar.', async () => {
-    const borrar = await abrirEliminar();
-    pulsarPapelera();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
-
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(borrar).not.toHaveBeenCalled();
-    expect(screen.getByText('Juan Pérez González')).toBeTruthy();
-  });
-
-  it('70. Confirmar elimina en Supabase, quita la fila y avisa del éxito.', async () => {
-    const borrar = await abrirEliminar();
-    pulsarPapelera();
-
-    escribirNombre();
-    fireEvent.click(screen.getByRole('button', { name: 'Sí, eliminar' }));
-
-    expect(await screen.findByText(/Candidato Juan Pérez González eliminado/)).toBeTruthy();
-    expect(borrar.eq).toHaveBeenCalledWith('id', 1);
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.queryByText('Juan Pérez González', { selector: 'td' })).toBeNull();
+    expect(screen.getByText('María José Silva')).toBeTruthy();
     expect(screen.getByText('Carlos Valenzuela')).toBeTruthy();
-  });
-
-  it('71. Si la base no borra nada (RLS) muestra el error y conserva la fila.', async () => {
-    await abrirEliminar({ filas: [] });
-    pulsarPapelera();
-
-    escribirNombre();
-    fireEvent.click(screen.getByRole('button', { name: 'Sí, eliminar' }));
-
-    const alerta = await screen.findByRole('alert');
-    expect(alerta.textContent).toContain('No se pudo eliminar el candidato: No se eliminó ningún registro');
-    expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.queryByText(/eliminado\./)).toBeNull();
-    expect(screen.getByText('Juan Pérez González', { selector: 'td' })).toBeTruthy();
-  });
-
-  it('72. Mientras elimina muestra "Eliminando..." y bloquea los botones.', async () => {
-    await abrirEliminar({ pendiente: true });
-    pulsarPapelera();
-
-    escribirNombre();
-    fireEvent.click(screen.getByRole('button', { name: 'Sí, eliminar' }));
-
-    const eliminando = await screen.findByRole('button', { name: 'Eliminando...' });
-    expect(eliminando.disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Cancelar' }).disabled).toBe(true);
   });
 });

@@ -1,19 +1,13 @@
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  actualizarCandidato,
-  actualizarEstadoCandidato,
-  eliminarCandidato,
-  normalizarEstado,
-  obtenerCandidatos
-} from '../services/candidatosService';
+import { actualizarCandidato, normalizarEstado, obtenerCandidatos } from '../services/candidatosService';
 import BotonIcono from '../components/BotonIcono';
 import Alerta from '../components/Alerta';
 import Modal, { BotonModal } from '../components/Modal';
 import InsigniaEstado from '../components/InsigniaEstado';
 import { AuthContext, usePuede } from '../context/AuthContext';
 import { PERMISOS, ROLES } from '../context/permisos';
-import { IconoEditar, IconoEliminar, IconoEvaluar, IconoVer } from '../components/Iconos';
+import { IconoEditar, IconoEvaluar, IconoVer } from '../components/Iconos';
 
 // La tabla usa nombre_completo/familia_cargo; la interfaz trabaja con nombre/familia.
 const paraVista = (candidato) => ({
@@ -30,29 +24,25 @@ const Candidatos = () => {
   const puede = usePuede();
   const puedeCrear = puede(PERMISOS.CREAR_CANDIDATO);
   const puedeEditar = puede(PERMISOS.EDITAR_CANDIDATO);
-  const puedeSolicitar = puede(PERMISOS.CREAR_SOLICITUD);
-  const puedeEliminar = puede(PERMISOS.ELIMINAR_CANDIDATO);
+  const puedeEntrevistar = puede(PERMISOS.EVALUAR);
 
   // Operaciones recibe a los candidatos que superaron la primera etapa: por defecto ve solo los "Apto".
-  const esOperaciones = useContext(AuthContext)?.rol === ROLES.OPERACIONES;
+  const auth = useContext(AuthContext);
+  const esOperaciones = auth?.rol === ROLES.OPERACIONES;
+  const esReclutador = auth?.rol === ROLES.RECLUTADOR;
   const [soloAptos, setSoloAptos] = useState(esOperaciones);
+  // El reclutador parte viendo solo a sus candidatos (los que registró o le asignó el admin).
+  const [soloMios, setSoloMios] = useState(true);
 
   const [candidatos, setCandidatos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState('');
 
   const [modalEditar, setModalEditar] = useState(null);
-  const [modalSolicitud, setModalSolicitud] = useState(null);
   const [notificacion, setNotificacion] = useState('');
   const [errorEmail, setErrorEmail] = useState('');
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState('');
-  const [solicitando, setSolicitando] = useState(false);
-  const [errorSolicitud, setErrorSolicitud] = useState('');
-  const [modalEliminar, setModalEliminar] = useState(null);
-  const [eliminando, setEliminando] = useState(false);
-  const [errorEliminar, setErrorEliminar] = useState('');
-  const [confirmacionNombre, setConfirmacionNombre] = useState('');
 
   useEffect(() => {
     let activo = true;
@@ -109,7 +99,7 @@ const Candidatos = () => {
       });
       setCandidatos((lista) => lista.map((c) => (c.id === guardado.id ? paraVista(guardado) : c)));
       setModalEditar(null);
-      lanzarNotificacion('✅ Datos del candidato actualizados con éxito.');
+      lanzarNotificacion('Datos del candidato actualizados con éxito.');
     } catch (error) {
       setErrorGuardado(`No se pudieron guardar los cambios: ${error?.message ?? 'error desconocido'}`);
     } finally {
@@ -117,54 +107,12 @@ const Candidatos = () => {
     }
   };
 
-  // Solicitar la evaluación pasa al candidato a "En proceso" en Supabase; la lista se actualiza
-  // con la fila devuelta y el Inicio lo refleja al volver a cargar sus datos.
-  const confirmarSolicitudEvaluacion = async () => {
-    if (solicitando) return;
-    setErrorSolicitud('');
-    setSolicitando(true);
-    try {
-      const guardado = await actualizarEstadoCandidato(modalSolicitud.id, 'En proceso');
-      setCandidatos((lista) => lista.map((c) => (c.id === guardado.id ? paraVista(guardado) : c)));
-      lanzarNotificacion(`✅ Evaluación solicitada para ${modalSolicitud.nombre}. Estado: En proceso.`);
-      setModalSolicitud(null);
-    } catch (error) {
-      setErrorSolicitud(`No se pudo solicitar la evaluación: ${error?.message ?? 'error desconocido'}`);
-    } finally {
-      setSolicitando(false);
-    }
-  };
-
-  // Elimina en Supabase y solo entonces quita la fila de la lista local.
-  const confirmarEliminacion = async () => {
-    if (eliminando || !nombreConfirmado) return;
-    setErrorEliminar('');
-    setEliminando(true);
-    try {
-      await eliminarCandidato(modalEliminar.id);
-      setCandidatos((lista) => lista.filter((c) => c.id !== modalEliminar.id));
-      lanzarNotificacion(`🗑️ Candidato ${modalEliminar.nombre} eliminado.`);
-      cerrarEliminar();
-    } catch (error) {
-      setErrorEliminar(`No se pudo eliminar el candidato: ${error?.message ?? 'error desconocido'}`);
-    } finally {
-      setEliminando(false);
-    }
-  };
-
-  // Segunda verificación del borrado: el admin debe escribir el nombre del postulante.
-  const normalizarNombre = (texto) => String(texto ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
-  const nombreConfirmado = Boolean(modalEliminar) &&
-    normalizarNombre(confirmacionNombre) === normalizarNombre(modalEliminar.nombre);
-
-  const cerrarEliminar = () => {
-    setModalEliminar(null);
-    setConfirmacionNombre('');
-  };
-
-  const visibles = esOperaciones && soloAptos
-    ? candidatos.filter((c) => normalizarEstado(c) === 'Apto')
-    : candidatos;
+  // Sin la migración de asignación los candidatos no traen `reclutador_id`: no hay "mis candidatos".
+  const hayAsignacion = candidatos.some((c) => 'reclutador_id' in c);
+  const filtraMios = esReclutador && hayAsignacion && soloMios;
+  const visibles = candidatos
+    .filter((c) => !(esOperaciones && soloAptos) || normalizarEstado(c) === 'Apto')
+    .filter((c) => !filtraMios || c.reclutador_id === auth.user?.id);
 
   const lanzarNotificacion = (msg) => {
     setNotificacion(msg);
@@ -176,7 +124,7 @@ const Candidatos = () => {
       
       {/* Notificación flotante superior */}
       {notificacion && (
-        <div role="status" className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-green-200 border-l-4 border-l-green-600 bg-green-50 px-5 py-3 text-sm font-semibold text-green-900">
+        <div role="status" className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-5 py-3 text-sm font-semibold text-green-900">
           <span>{notificacion}</span>
           <button
             type="button"
@@ -223,6 +171,26 @@ const Candidatos = () => {
         )}
       </div>
 
+      {esReclutador && hayAsignacion && (
+        <div role="group" aria-label="Filtro de candidatos" className="flex gap-2 mb-4">
+          {[['Mis candidatos', true], ['Todos', false]].map(([etiqueta, valor]) => (
+            <button
+              key={etiqueta}
+              type="button"
+              aria-pressed={soloMios === valor}
+              onClick={() => setSoloMios(valor)}
+              className={`px-4 py-2 rounded-lg text-sm font-bold border cursor-pointer ${
+                soloMios === valor
+                  ? 'bg-aqua-blue text-white border-aqua-blue'
+                  : 'bg-white text-aqua-blue border-gray-200'
+              }`}
+            >
+              {etiqueta}
+            </button>
+          ))}
+        </div>
+      )}
+
       {esOperaciones && (
         <div role="group" aria-label="Filtro de candidatos" className="flex gap-2 mb-4">
           {[['Todos', false], ['Solo Aptos', true]].map(([etiqueta, valor]) => (
@@ -264,7 +232,11 @@ const Candidatos = () => {
               <tr><td colSpan="7" role="alert" className="p-6 text-center text-red-700">{errorCarga}</td></tr>
             ) : visibles.length === 0 ? (
               <tr><td colSpan="7" className="p-6 text-center text-gray-500">
-                {candidatos.length === 0 ? 'No hay candidatos registrados.' : 'No hay candidatos en estado Apto.'}
+                {candidatos.length === 0
+                  ? 'No hay candidatos registrados.'
+                  : filtraMios
+                    ? 'No tienes candidatos asignados. Cambia a «Todos» para ver el resto.'
+                    : 'No hay candidatos en estado Apto.'}
               </td></tr>
             ) : visibles.map((c) => (
               <tr key={c.id} className="border-b border-gray-100 text-sm">
@@ -308,32 +280,12 @@ const Candidatos = () => {
                         }}
                       />
                     )}
-                    {puedeSolicitar && (
+                    {puedeEntrevistar && !['Apto', 'No apto'].includes(normalizarEstado(c)) && (
                       <BotonIcono
                         icono={IconoEvaluar}
-                        etiqueta={
-                          normalizarEstado(c) === 'Pendiente'
-                            ? `Solicitar evaluación de ${c.nombre}`
-                            : `Evaluación ya solicitada (${normalizarEstado(c)})`
-                        }
+                        etiqueta={`${normalizarEstado(c) === 'En proceso' ? 'Continuar la entrevista de' : 'Entrevistar a'} ${c.nombre}`}
                         tono="naranja"
-                        disabled={normalizarEstado(c) !== 'Pendiente'}
-                        onClick={() => {
-                          setErrorSolicitud('');
-                          setModalSolicitud(c);
-                        }}
-                      />
-                    )}
-                    {puedeEliminar && (
-                      <BotonIcono
-                        icono={IconoEliminar}
-                        etiqueta={`Eliminar candidato ${c.nombre}`}
-                        tono="rojo"
-                        onClick={() => {
-                          setErrorEliminar('');
-                          setConfirmacionNombre('');
-                          setModalEliminar(c);
-                        }}
+                        to={`/entrevista/${c.id}`}
                       />
                     )}
                   </div>
@@ -416,87 +368,6 @@ const Candidatos = () => {
               </BotonModal>
             </div>
           </form>
-        </Modal>
-      )}
-
-      {/* --- MODAL CONFIRMAR ELIMINACIÓN (solo admin): exige escribir el nombre del postulante --- */}
-      {modalEliminar && (
-        <Modal
-          titulo="Eliminar candidato"
-          idTitulo="titulo-eliminar"
-          tono="rojo"
-          icono={<IconoEliminar className="w-7 h-7" />}
-        >
-          <p className="text-sm leading-relaxed text-gray-700 m-0 mb-2">
-            ¿Estás seguro de que deseas eliminar a este candidato?
-          </p>
-          <p className="text-sm leading-relaxed text-gray-700 m-0 mb-4">
-            <strong className="text-aqua-blue">{modalEliminar.nombre}</strong> ({modalEliminar.rut}).
-            Esta acción no se puede deshacer.
-          </p>
-
-          <label htmlFor="confirmar-nombre" className={claseEtiqueta}>
-            Para confirmar, escribe el nombre completo del postulante:
-          </label>
-          <input
-            id="confirmar-nombre"
-            type="text"
-            autoComplete="off"
-            value={confirmacionNombre}
-            onChange={(e) => setConfirmacionNombre(e.target.value)}
-            placeholder={modalEliminar.nombre}
-            disabled={eliminando}
-            className={`${claseCampo} mb-1`}
-          />
-          <p className="text-xs text-gray-500 m-0 mb-4">
-            {nombreConfirmado
-              ? 'El nombre coincide. Ya puedes eliminar.'
-              : 'El botón se habilita cuando el nombre coincide exactamente.'}
-          </p>
-
-          {errorEliminar && <div className="mb-4"><Alerta>{errorEliminar}</Alerta></div>}
-
-          <div className="flex justify-end gap-3">
-            <BotonModal variante="secundario" disabled={eliminando} onClick={cerrarEliminar}>
-              Cancelar
-            </BotonModal>
-            <BotonModal
-              variante="peligro"
-              disabled={eliminando || !nombreConfirmado}
-              onClick={confirmarEliminacion}
-            >
-              {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
-            </BotonModal>
-          </div>
-        </Modal>
-      )}
-
-      {/* --- MODAL SOLICITAR EVALUACIÓN --- */}
-      {modalSolicitud && (
-        <Modal titulo="Solicitar evaluación" idTitulo="titulo-solicitar" icono={<IconoEvaluar className="w-7 h-7" />}>
-          <p className="text-sm leading-relaxed text-gray-700 m-0 mb-4">
-            ¿Deseas generar la orden de evaluación psicolaboral para{' '}
-            <strong className="text-aqua-blue">{modalSolicitud.nombre}</strong>?
-          </p>
-
-          <div className="rounded-lg bg-aqua-light border border-gray-200 border-l-4 border-l-aqua-orange p-4 text-sm mb-5">
-            <strong className="text-aqua-blue">Qué ocurrirá:</strong>
-            <ul className="mt-2 mb-0 pl-5 text-gray-700 leading-relaxed">
-              <li>El estado del candidato pasará a <strong>En proceso</strong>.</li>
-              <li>Quedará disponible para evaluar en Solicitudes ({modalSolicitud.familia}).</li>
-            </ul>
-          </div>
-
-          {errorSolicitud && <div className="mb-4"><Alerta>{errorSolicitud}</Alerta></div>}
-
-          <div className="flex justify-end gap-3">
-            <BotonModal variante="secundario" disabled={solicitando} onClick={() => setModalSolicitud(null)}>
-              Cancelar
-            </BotonModal>
-            <BotonModal disabled={solicitando} onClick={confirmarSolicitudEvaluacion}>
-              {solicitando ? 'Solicitando...' : 'Confirmar y Derivar'}
-            </BotonModal>
-          </div>
         </Modal>
       )}
 

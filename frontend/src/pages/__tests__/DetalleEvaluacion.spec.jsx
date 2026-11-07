@@ -55,6 +55,17 @@ describe('DetalleEvaluacion', () => {
     expect(screen.getByRole('button', { name: 'Guardar Evaluación' })).toBeTruthy();
   });
 
+  it('153. El botón Fecha actual completa la fecha con el día de hoy (AAAA-MM-DD).', async () => {
+    await renderEvaluacion();
+    const hoy = new Date();
+    const dos = (n) => String(n).padStart(2, '0');
+    const esperado = `${hoy.getFullYear()}-${dos(hoy.getMonth() + 1)}-${dos(hoy.getDate())}`;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fecha actual' }));
+
+    expect(screen.getByLabelText('Fecha de Evaluación:').value).toBe(esperado);
+  });
+
   it('14. Valida los campos requeridos antes de guardar.', async () => {
     const update = await renderEvaluacion();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar Evaluación' }));

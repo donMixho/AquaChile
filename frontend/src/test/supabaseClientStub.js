@@ -10,6 +10,9 @@ export const supabase = {
     signInWithPassword: () => Promise.reject(new Error('supabase.auth no fue simulado en esta prueba')),
     signOut: () => Promise.resolve({ error: null })
   },
+  functions: {
+    invoke: () => Promise.reject(new Error('supabase.functions.invoke no fue simulado en esta prueba'))
+  },
   storage: {
     from: () => {
       throw new Error('supabase.storage.from no fue simulado en esta prueba');

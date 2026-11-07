@@ -37,6 +37,27 @@ describe('NuevoCandidato (rol reclutador)', () => {
     expect(supabase.from).not.toHaveBeenCalled();
   });
 
+  it('154. Un RUT con DV incorrecto informa cuál es el dígito correcto.', () => {
+    llenar({ rut: '10.000.013-5' });
+    enviar();
+
+    expect(screen.getByRole('alert').textContent).toContain('el dígito correcto es K');
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it('158. El teléfono se formatea como 9 XXXX XXXX y un número incompleto no se guarda.', () => {
+    llenar();
+    const telefono = screen.getByPlaceholderText('9 1234 5678');
+    fireEvent.change(telefono, { target: { value: '995559205' } });
+    expect(telefono.value).toBe('9 9555 9205');
+
+    fireEvent.change(telefono, { target: { value: '99555' } });
+    enviar();
+
+    expect(screen.getByRole('alert').textContent).toContain('9 dígitos');
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
   it('56. Acepta un RUT con verificador K válido.', () => {
     llenar({ rut: '10.000.013-K' });
     enviar();

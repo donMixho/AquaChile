@@ -5,9 +5,7 @@ const Modal = ({ titulo, idTitulo, icono, tono = 'azul', children }) => (
       role="dialog"
       aria-modal="true"
       aria-labelledby={idTitulo}
-      className={`w-full max-w-md rounded-xl bg-white p-6 shadow-xl border-t-4 ${
-        tono === 'rojo' ? 'border-red-600' : 'border-aqua-orange'
-      }`}
+      className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl"
     >
       <div className="flex items-center gap-3 mb-4">
         {icono && <span className={tono === 'rojo' ? 'text-red-600' : 'text-aqua-orange'}>{icono}</span>}

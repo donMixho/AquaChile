@@ -2,12 +2,6 @@ import { PERMISOS, ROLES, tienePermiso } from '../permisos';
 import { obtenerRol } from '../AuthContext';
 
 describe('Permisos por rol (RBAC)', () => {
-  it('40. El admin tiene todos los permisos.', () => {
-    Object.values(PERMISOS).forEach((permiso) => {
-      expect(tienePermiso(ROLES.ADMIN, permiso)).toBe(true);
-    });
-  });
-
   it('41. El reclutador registra y evalúa, pero no elimina ni configura.', () => {
     [PERMISOS.VER_CANDIDATOS, PERMISOS.CREAR_CANDIDATO, PERMISOS.EDITAR_CANDIDATO, PERMISOS.EVALUAR].forEach(
       (permiso) => expect(tienePermiso(ROLES.RECLUTADOR, permiso)).toBe(true)
@@ -16,7 +10,7 @@ describe('Permisos por rol (RBAC)', () => {
     expect(tienePermiso(ROLES.RECLUTADOR, PERMISOS.CONFIGURACION)).toBe(false);
   });
 
-  it('42. Operaciones es de solo lectura.', () => {
+  it('42. Operaciones solo lee y decide sobre los aptos: no crea, edita, evalúa ni elimina.', () => {
     [PERMISOS.VER_INICIO, PERMISOS.VER_SOLICITUDES, PERMISOS.VER_CANDIDATOS].forEach((permiso) =>
       expect(tienePermiso(ROLES.OPERACIONES, permiso)).toBe(true)
     );
@@ -24,6 +18,8 @@ describe('Permisos por rol (RBAC)', () => {
       PERMISOS.CREAR_SOLICITUD, PERMISOS.CREAR_CANDIDATO, PERMISOS.EDITAR_CANDIDATO,
       PERMISOS.EVALUAR, PERMISOS.ELIMINAR_CANDIDATO, PERMISOS.CONFIGURACION
     ].forEach((permiso) => expect(tienePermiso(ROLES.OPERACIONES, permiso)).toBe(false));
+    expect(tienePermiso(ROLES.OPERACIONES, PERMISOS.DECIDIR_APTOS)).toBe(true);
+    expect(tienePermiso(ROLES.RECLUTADOR, PERMISOS.DECIDIR_APTOS)).toBe(false);
   });
 
   it('43. Un rol desconocido o ausente no tiene ningún permiso.', () => {

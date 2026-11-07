@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { crearCarpetaDrive } from '../driveService';
-import { obtenerCandidatos, crearCandidato, normalizarEstado, actualizarEstadoCandidato, obtenerCandidatoPorId, actualizarCandidato, eliminarCandidato } from '../candidatosService';
+import { obtenerCandidatos, crearCandidato, normalizarEstado, actualizarEstadoCandidato, obtenerCandidatoPorId, actualizarCandidato, eliminarCandidato, asignarCandidato } from '../candidatosService';
 
 describe('candidatosService (supabase simulado)', () => {
   it('29. obtenerCandidatos devuelve los datos de la consulta.', async () => {
@@ -220,6 +220,9 @@ describe('candidatosService (supabase simulado)', () => {
   });
 });
 
+// Deja correr la tarea en segundo plano de Drive (crearCandidato ya no la espera).
+const esperarSegundoPlano = () => new Promise((resolver) => setTimeout(resolver, 20));
+
 const respuestaJson = (cuerpo, ok = true) => Promise.resolve({ ok, json: () => Promise.resolve(cuerpo) });
 
 describe('Integración con Google Drive', () => {
@@ -257,9 +260,10 @@ describe('Integración con Google Drive', () => {
     spyOn(supabase, 'from').and.returnValue(simularInsert());
 
     expect(await crearCandidato(datos)).toEqual(filaCreada);
+    await esperarSegundoPlano();
   });
 
-  it('73. Con carpeta creada, guarda drive_folder_url en el candidato.', async () => {
+  it('73. Con carpeta creada, guarda drive_folder_url en segundo plano sin bloquear el registro.', async () => {
     spyOn(window, 'fetch').and.returnValue(respuestaJson({ success: true, folderUrl: 'https://drive/f1' }));
     const actualizado = { ...filaCreada, drive_folder_url: 'https://drive/f1' };
     const update = jasmine.createSpy('update').and.returnValue({
@@ -267,7 +271,11 @@ describe('Integración con Google Drive', () => {
     });
     spyOn(supabase, 'from').and.returnValue({ ...simularInsert(), update });
 
-    expect(await crearCandidato(datos)).toEqual(actualizado);
+    // Retorna el candidato recién insertado sin esperar al webhook ni al UPDATE.
+    expect(await crearCandidato(datos)).toEqual(filaCreada);
+    expect(update).not.toHaveBeenCalled();
+
+    await esperarSegundoPlano();
     expect(update).toHaveBeenCalledWith({ drive_folder_url: 'https://drive/f1' });
   });
 
@@ -279,5 +287,85 @@ describe('Integración con Google Drive', () => {
     spyOn(supabase, 'from').and.returnValue({ ...simularInsert(), update });
 
     expect(await crearCandidato(datos)).toEqual(filaCreada);
+    await esperarSegundoPlano();
+  });
+});
+
+describe('asignarCandidato', () => {
+  const simularUpdate = () => {
+    const update = jasmine.createSpy('update').and.callFake((valores) => ({
+      eq: () => ({ select: () => ({ single: () => Promise.resolve({ data: { id: 1, ...valores }, error: null }) }) })
+    }));
+    spyOn(supabase, 'from').and.returnValue({ update });
+    return update;
+  };
+
+  it('envía solo la clave pedida y convierte la solicitud a número.', async () => {
+    const update = simularUpdate();
+
+    await asignarCandidato(1, { solicitudId: '7' });
+    expect(update).toHaveBeenCalledWith({ solicitud_id: 7 });
+
+    await asignarCandidato(1, { reclutadorId: 'r1' });
+    expect(update).toHaveBeenCalledWith({ reclutador_id: 'r1' });
+  });
+
+  it('un valor vacío deja al candidato sin asignar.', async () => {
+    const update = simularUpdate();
+
+    await asignarCandidato(1, { reclutadorId: '', solicitudId: '' });
+
+    expect(update).toHaveBeenCalledWith({ reclutador_id: null, solicitud_id: null });
+  });
+
+  it('rechaza una llamada sin datos.', async () => {
+    simularUpdate();
+
+    await expectAsync(asignarCandidato(1, {})).toBeRejectedWithError('No hay datos para actualizar.');
+  });
+});
+
+describe('crearCandidato: responsable', () => {
+  const datos = { nombre: 'Ana Soto', rut: '1-9', cargo: 'Operaria', familia: 'Producción', email: 'ana@aquachile.cl' };
+
+  it('el reclutador que registra queda como responsable del candidato.', async () => {
+    spyOn(window, 'fetch').and.callFake(() => Promise.reject(new Error('sin red')));
+    const insert = jasmine.createSpy('insert').and.returnValue({
+      select: () => ({ single: () => Promise.resolve({ data: { id: 9 }, error: null }) })
+    });
+    spyOn(supabase, 'from').and.returnValue({ insert });
+
+    await crearCandidato(datos, null, { reclutadorId: 'r1' });
+
+    expect(insert.calls.mostRecent().args[0].reclutador_id).toBe('r1');
+  });
+
+  it('sin responsable no envía la columna.', async () => {
+    spyOn(window, 'fetch').and.callFake(() => Promise.reject(new Error('sin red')));
+    const insert = jasmine.createSpy('insert').and.returnValue({
+      select: () => ({ single: () => Promise.resolve({ data: { id: 9 }, error: null }) })
+    });
+    spyOn(supabase, 'from').and.returnValue({ insert });
+
+    await crearCandidato(datos);
+
+    expect('reclutador_id' in insert.calls.mostRecent().args[0]).toBe(false);
+  });
+
+  it('si la columna aún no existe, reintenta sin ella y registra igual.', async () => {
+    spyOn(window, 'fetch').and.callFake(() => Promise.reject(new Error('sin red')));
+    const insert = jasmine.createSpy('insert').and.callFake((valores) => ({
+      select: () => ({
+        single: () => Promise.resolve(
+          'reclutador_id' in valores
+            ? { data: null, error: { code: 'PGRST204', message: "Could not find the 'reclutador_id' column of 'candidatos' in the schema cache" } }
+            : { data: { id: 9 }, error: null }
+        )
+      })
+    }));
+    spyOn(supabase, 'from').and.returnValue({ insert });
+
+    expect(await crearCandidato(datos, null, { reclutadorId: 'r1' })).toEqual({ id: 9 });
+    expect(insert).toHaveBeenCalledTimes(2);
   });
 });

@@ -103,7 +103,7 @@ const ListaEvaluaciones = () => {
           <button
             type="button"
             onClick={() => { setFiltroFamilia(''); setFechaDesde(''); setFechaHasta(''); }}
-            className="text-sm text-aqua-orange hover:underline bg-transparent border-none cursor-pointer"
+            className="text-sm text-orange-700 hover:underline bg-transparent border-none cursor-pointer"
           >
             Limpiar
           </button>
@@ -153,7 +153,7 @@ const ListaEvaluaciones = () => {
                         icono={IconoEvaluar}
                         etiqueta={`Evaluar a ${nombre(candidato)}`}
                         tono="naranja"
-                        to={`/solicitudes/${candidato.id}/evaluar`}
+                        to={`/entrevista/${candidato.id}`}
                       />
                     )}
                   </div>

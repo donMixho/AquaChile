@@ -15,23 +15,30 @@ export const PERMISOS = {
   EDITAR_CANDIDATO: 'editar_candidato',
   EVALUAR: 'evaluar',
   ELIMINAR_CANDIDATO: 'eliminar_candidato',
-  CONFIGURACION: 'configuracion'
+  CONFIGURACION: 'configuracion',
+  GESTIONAR_EQUIPO: 'gestionar_equipo',
+  ASIGNAR_CASOS: 'asignar_casos',
+  DECIDIR_APTOS: 'decidir_aptos'
 };
 
 const {
   VER_INICIO, VER_SOLICITUDES, CREAR_SOLICITUD, VER_CANDIDATOS,
-  CREAR_CANDIDATO, EDITAR_CANDIDATO, EVALUAR
+  CREAR_CANDIDATO, EDITAR_CANDIDATO, EVALUAR, DECIDIR_APTOS
 } = PERMISOS;
 
 const PERMISOS_POR_ROL = {
-  // Todo, incluido borrado y configuración avanzada (exclusivos del admin).
-  [ROLES.ADMIN]: Object.values(PERMISOS),
+  // Jefatura: supervisa, asigna, gestiona al equipo y es la única que elimina. No hace el trabajo
+  // operativo (registrar candidatos, entrevistar) ni la decisión de Operaciones. A nivel de base de
+  // datos conserva acceso amplio como respaldo; la interfaz solo le muestra lo de supervisión.
+  [ROLES.ADMIN]: Object.values(PERMISOS).filter(
+    (permiso) => ![CREAR_CANDIDATO, EDITAR_CANDIDATO, EVALUAR, DECIDIR_APTOS].includes(permiso)
+  ),
   // Registra y evalúa candidatos, pero no elimina ni configura.
   [ROLES.RECLUTADOR]: [
     VER_INICIO, VER_SOLICITUDES, CREAR_SOLICITUD, VER_CANDIDATOS, CREAR_CANDIDATO, EDITAR_CANDIDATO, EVALUAR
   ],
-  // Solo lectura: Inicio, solicitudes y candidatos. No crea, edita, evalúa ni elimina nada.
-  [ROLES.OPERACIONES]: [VER_INICIO, VER_SOLICITUDES, VER_CANDIDATOS]
+  // Recibe a los aptos y decide si los selecciona o descarta. No crea, edita, evalúa ni elimina.
+  [ROLES.OPERACIONES]: [VER_INICIO, VER_SOLICITUDES, VER_CANDIDATOS, DECIDIR_APTOS]
 };
 
 // Un rol desconocido o ausente no tiene ningún permiso.

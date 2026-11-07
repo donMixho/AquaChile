@@ -1,5 +1,5 @@
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { supabase } from '../services/supabaseClient';
 import { AuthContext } from '../context/AuthContext';
 
@@ -92,3 +92,10 @@ export const simularDelete = ({ error = null, filas = [{ id: 1 }], pendiente = f
   borrar.eq = eq;
   return borrar;
 };
+
+// Espera a que `condicion()` sea verdadera. Dentro de waitFor, el expect de Jasmine no lanza error
+// (solo registra el fallo), así que la espera terminaría al instante: aquí se lanza para que reintente.
+export const esperar = (condicion, opciones) =>
+  waitFor(() => {
+    if (!condicion()) throw new Error('La condición aún no se cumple.');
+  }, opciones);
