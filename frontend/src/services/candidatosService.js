@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { crearCarpetaDrive } from './driveService';
+import { traducirFaltaDeMigracion } from './erroresBase';
 
 export const ESTADOS_CANDIDATO = ['Pendiente', 'En proceso', 'Apto', 'No apto'];
 
@@ -78,6 +79,43 @@ export const actualizarEstadoCandidato = async (id, nuevoEstado) => {
   return actualizarPorId(id, { estado: nuevoEstado });
 };
 
+export const DECISIONES = ['Seleccionado', 'Descartado'];
+
+// Decisión de Operaciones sobre un candidato Apto. `decision` null la deja otra vez sin decidir
+// (reconsiderar). Descartar exige motivo; quién decidió y cuándo los pone la base de datos.
+export const decidirCandidato = async (id, decision, motivo = '') => {
+  if (decision !== null && !DECISIONES.includes(decision)) {
+    throw new Error(`Decisión no válida: ${decision}`);
+  }
+  if (decision === 'Descartado' && !String(motivo).trim()) {
+    throw new Error('Indica el motivo del descarte.');
+  }
+
+  try {
+    return await actualizarPorId(id, {
+      decision_operaciones: decision,
+      motivo_decision: decision === 'Descartado' ? String(motivo).trim() : null
+    });
+  } catch (error) {
+    throw traducirFaltaDeMigracion(error, { tabla: 'candidatos', archivo: 'migracion_decision_operaciones.sql' });
+  }
+};
+
+// Asignación (solo admin; la base lo exige con el trigger de docs/migracion_asignacion.sql).
+// reclutadorId / solicitudId vacíos o null dejan al candidato sin asignar. Solo se tocan las
+// claves presentes: asignar el responsable no borra la solicitud ni al revés.
+export const asignarCandidato = async (id, { reclutadorId, solicitudId } = {}) => {
+  const cambios = {};
+  if (reclutadorId !== undefined) cambios.reclutador_id = reclutadorId || null;
+  if (solicitudId !== undefined) cambios.solicitud_id = solicitudId ? Number(solicitudId) : null;
+
+  if (Object.keys(cambios).length === 0) {
+    throw new Error('No hay datos para actualizar.');
+  }
+
+  return actualizarPorId(id, cambios);
+};
+
 // Campos editables (nombre en el formulario -> columna de la tabla). Cualquier otro se ignora,
 // así un objeto de la UI con id, estado o cv_url no puede sobrescribir esas columnas.
 const COLUMNAS_EDITABLES = {
@@ -150,40 +188,49 @@ export const subirCurriculum = async (archivo, rut) => {
   return { ruta, url: data.publicUrl };
 };
 
-// La carpeta de Drive es opcional: si no se crea o no se puede guardar el enlace, el candidato
-// ya registrado se devuelve igual (sin drive_folder_url).
+// La carpeta de Drive es opcional y se crea en segundo plano (fire-and-forget): el registro no
+// espera al webhook. Si la carpeta no se crea o no se puede guardar el enlace, el candidato
+// queda registrado igual (sin drive_folder_url). Nunca lanza ni deja una promesa rechazada.
 const asociarCarpetaDrive = async (candidato) => {
-  const folderUrl = await crearCarpetaDrive({ rut: candidato.rut, nombre: candidato.nombre_completo });
-  if (!folderUrl) return candidato;
-
   try {
-    return await actualizarPorId(candidato.id, { drive_folder_url: folderUrl });
+    const folderUrl = await crearCarpetaDrive({ rut: candidato.rut, nombre: candidato.nombre_completo });
+    if (folderUrl) await actualizarPorId(candidato.id, { drive_folder_url: folderUrl });
   } catch {
-    return candidato;
+    // Silencioso a propósito: la carpeta es un extra y no debe afectar al registro.
   }
 };
 
-export const crearCandidato = async (formData, archivoCv = null) => {
+const CODIGO_COLUMNA_AUSENTE = 'PGRST204';
+
+// `reclutadorId`: quien registra al candidato queda como su responsable, para que aparezca en su
+// bandeja sin esperar a que el admin lo asigne. Si la columna aún no existe (migración de
+// asignación pendiente) se reintenta sin ella, como antes.
+export const crearCandidato = async (formData, archivoCv = null, { reclutadorId } = {}) => {
   const cv = archivoCv ? await subirCurriculum(archivoCv, formData.rut) : null;
 
-  const { data, error } = await supabase
-    .from('candidatos')
-    .insert({
-      nombre_completo: formData.nombreCompleto ?? formData.nombre,
-      rut: formData.rut,
-      cargo: formData.cargo,
-      familia_cargo: formData.familiaCargo ?? formData.familia,
-      email: formData.email,
-      telefono: formData.telefono || null,
-      cv_url: cv?.url ?? null
-    })
-    .select()
-    .single();
+  const fila = {
+    nombre_completo: formData.nombreCompleto ?? formData.nombre,
+    rut: formData.rut,
+    cargo: formData.cargo,
+    familia_cargo: formData.familiaCargo ?? formData.familia,
+    email: formData.email,
+    telefono: formData.telefono || null,
+    cv_url: cv?.url ?? null
+  };
+  const insertar = (valores) => supabase.from('candidatos').insert(valores).select().single();
+
+  let { data, error } = await insertar(reclutadorId ? { ...fila, reclutador_id: reclutadorId } : fila);
+  if (error?.code === CODIGO_COLUMNA_AUSENTE && reclutadorId) {
+    ({ data, error } = await insertar(fila));
+  }
 
   if (error) {
     if (cv) await supabase.storage.from(BUCKET_CV).remove([cv.ruta]);
     throw error;
   }
 
-  return asociarCarpetaDrive(data);
+  // Sin await: la latencia del webhook no se suma al guardado.
+  asociarCarpetaDrive(data);
+
+  return data;
 };

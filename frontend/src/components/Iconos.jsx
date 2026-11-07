@@ -83,6 +83,65 @@ export const IconoEquis = (props) => (
   </Icono>
 );
 
+export const IconoResumen = (props) => (
+  <Icono {...props}>
+    <rect x="3" y="3" width="7" height="9" rx="1" />
+    <rect x="14" y="3" width="7" height="5" rx="1" />
+    <rect x="14" y="12" width="7" height="9" rx="1" />
+    <rect x="3" y="16" width="7" height="5" rx="1" />
+  </Icono>
+);
+
+export const IconoEquipo = (props) => (
+  <Icono {...props}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </Icono>
+);
+
+export const IconoSolicitudes = (props) => (
+  <Icono {...props}>
+    <rect x="2" y="7" width="20" height="14" rx="2" />
+    <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+  </Icono>
+);
+
+export const IconoCandidatos = (props) => (
+  <Icono {...props}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+    <path d="M14 2v6h6" />
+    <circle cx="12" cy="14" r="2" />
+    <path d="M8.5 19a3.5 3.5 0 0 1 7 0" />
+  </Icono>
+);
+
+export const IconoSalir = (props) => (
+  <Icono {...props}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="m16 17 5-5-5-5" />
+    <path d="M21 12H9" />
+  </Icono>
+);
+
+export const IconoMenu = (props) => (
+  <Icono {...props}>
+    <path d="M4 6h16" />
+    <path d="M4 12h16" />
+    <path d="M4 18h16" />
+  </Icono>
+);
+
+export const IconoInvitar = (props) => (
+  <Icono {...props}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M19 8v6" />
+    <path d="M22 11h-6" />
+  </Icono>
+);
+
 export const IconoUsuario = (props) => (
   <Icono {...props}>
     <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />

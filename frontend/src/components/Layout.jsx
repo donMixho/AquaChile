@@ -2,13 +2,14 @@ import { useContext, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import LogoAquaChile from './LogoAquaChile';
 import { AuthContext, usePuede } from '../context/AuthContext';
-import { ETIQUETAS_ROL, PERMISOS } from '../context/permisos';
+import { ETIQUETAS_ROL, PERMISOS, ROLES } from '../context/permisos';
 import { IconoUsuario } from './Iconos';
 
-// `permiso` limita quién ve el enlace; sin `permiso` lo ven todos.
+// `permiso` limita quién ve el enlace; sin `permiso` lo ven todos. `ocultoPara` lo quita del menú de
+// ciertos roles (la ruta sigue existiendo, pero no es parte de su trabajo diario).
 const navLinks = [
   { name: 'Inicio', path: '/' },
-  { name: 'Solicitudes', path: '/solicitudes', permiso: PERMISOS.VER_SOLICITUDES },
+  { name: 'Solicitudes', path: '/solicitudes', permiso: PERMISOS.VER_SOLICITUDES, ocultoPara: [ROLES.OPERACIONES] },
   { name: 'Candidatos', path: '/candidatos', permiso: PERMISOS.VER_CANDIDATOS }
 ];
 
@@ -33,7 +34,9 @@ const Layout = () => {
   // Sin AuthProvider (p. ej. en pruebas) se muestran todos los enlaces y no hay botón de salida.
   const auth = useContext(AuthContext);
   const puede = usePuede();
-  const enlaces = navLinks.filter((l) => !l.permiso || puede(l.permiso));
+  const enlaces = navLinks.filter(
+    (l) => (!l.permiso || puede(l.permiso)) && !l.ocultoPara?.includes(auth?.rol)
+  );
 
   // Insignia con el rol de la sesión; cambia según quién inició sesión.
   const etiquetaRol = auth?.rol ? ETIQUETAS_ROL[auth.rol] : null;

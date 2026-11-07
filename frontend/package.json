@@ -7,7 +7,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "karma start karma.conf.js"
+    "test": "karma start karma.conf.js",
+    "capturas": "node scripts/vista-previa/generar-capturas.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",

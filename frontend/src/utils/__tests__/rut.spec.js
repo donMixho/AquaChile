@@ -33,4 +33,23 @@ describe('rut', () => {
       expect(rutValido(rut)).toBe(false, String(rut));
     });
   });
+
+  it('159. formatearRut separa el verificador de RUT de 7 dígitos con cualquier DV (0-9 y K).', () => {
+    expect(formatearRut('98765433')).toBe('9.876.543-3');
+    expect(formatearRut('10000076')).toBe('1.000.007-6');
+    expect(formatearRut('10000009')).toBe('1.000.000-9');
+    expect(formatearRut('1000005K')).toBe('1.000.005-K');
+  });
+
+  it('160. Un RUT de 8 dígitos se forma bien al teclear aunque un paso intermedio parezca de 7 dígitos.', () => {
+    // 10000009: su último dígito (9) es el DV correcto de 1000000, o sea, un paso ambiguo.
+    const completo = `10000009${calcularDigitoVerificador('10000009')}`;
+    let campo = '';
+    for (const caracter of completo) {
+      campo = formatearRut(campo + caracter);
+      if (caracter === '9' && campo.replace(/\D/g, '').length === 8) expect(campo).toBe('1.000.000-9');
+    }
+    expect(campo).toBe(`10.000.009-${completo.slice(-1)}`);
+    expect(rutValido(campo)).toBeTrue();
+  });
 });

@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { crearCandidato } from '../services/candidatosService';
-import { formatearRut, rutValido } from '../utils/rut';
+import { AuthContext } from '../context/AuthContext';
+import { ROLES } from '../context/permisos';
+import { formatearRut, rutValido, sugerirDigitoVerificador } from '../utils/rut';
+import { formatearTelefono, telefonoValido } from '../utils/telefono';
 
 const normalizarEmail = (valor) => valor.replace(/\s/g, '').toLowerCase();
 
@@ -13,6 +16,7 @@ const emailValido = (email) =>
 
 const NuevoCandidato = () => {
   const navigate = useNavigate();
+  const auth = useContext(AuthContext);
 
   const [formulario, setFormulario] = useState({
     nombre: '',
@@ -27,6 +31,7 @@ const NuevoCandidato = () => {
   const [errorCv, setErrorCv] = useState('');
   const [errorEmail, setErrorEmail] = useState('');
   const [errorRut, setErrorRut] = useState('');
+  const [errorTelefono, setErrorTelefono] = useState('');
   const [errorInsercion, setErrorInsercion] = useState('');
   const [mensajeExito, setMensajeExito] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -54,16 +59,28 @@ const NuevoCandidato = () => {
 
     const rutOk = rutValido(formulario.rut);
     const emailOk = emailValido(formulario.email);
-    setErrorRut(rutOk ? '' : 'El RUT no es válido. Revisa el número y el dígito verificador.');
+    const sugerencia = rutOk ? null : sugerirDigitoVerificador(formulario.rut);
+    setErrorRut(
+      rutOk
+        ? ''
+        : `El RUT no es válido. Revisa el número y el dígito verificador.${
+            sugerencia ? ` Para ${formatearRut(sugerencia.cuerpo)} el dígito correcto es ${sugerencia.digito}.` : ''
+          }`
+    );
     setErrorEmail(emailOk ? '' : 'Ingresa un correo electrónico con formato válido.');
-    if (!rutOk || !emailOk) return;
+    const telefonoOk = telefonoValido(formulario.telefono);
+    setErrorTelefono(telefonoOk ? '' : 'Ingresa los 9 dígitos del móvil, por ejemplo 9 9555 9205.');
+    if (!rutOk || !emailOk || !telefonoOk) return;
 
     setErrorInsercion('');
     setGuardando(true);
 
     try {
       const formData = formulario;
-      await crearCandidato(formData, archivoCv);
+      // Un reclutador queda como responsable de quien registra; el admin puede reasignarlo después.
+      await crearCandidato(formData, archivoCv, {
+        reclutadorId: auth?.rol === ROLES.RECLUTADOR ? auth.user?.id : undefined
+      });
       setMensajeExito(true);
       setTimeout(() => {
         navigate('/candidatos');
@@ -200,8 +217,12 @@ const NuevoCandidato = () => {
               <input
                 type="text"
                 value={formulario.telefono}
-                onChange={(e) => setFormulario({ ...formulario, telefono: e.target.value })}
-                placeholder="+56 9 1234 5678"
+                inputMode="numeric"
+                onChange={(e) => {
+                  setFormulario({ ...formulario, telefono: formatearTelefono(e.target.value) });
+                  if (errorTelefono) setErrorTelefono('');
+                }}
+                placeholder="9 1234 5678"
                 style={{
                   width: '100%',
                   padding: '10px 14px',
@@ -214,6 +235,11 @@ const NuevoCandidato = () => {
                   boxSizing: 'border-box'
                 }}
               />
+              {errorTelefono && (
+                <span role="alert" style={{ color: '#b91c1c', fontSize: '12px', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
+                  {errorTelefono}
+                </span>
+              )}
             </div>
           </div>
 
