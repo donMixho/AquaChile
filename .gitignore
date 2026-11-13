@@ -1,0 +1,10 @@
+# Claude
+.claude/
+skills/
+CLAUDE.md
+PRODUCT.md
+DESIGN.md
+
+# Dependencias
+node_modules/
+frontend/supabase/.temp/

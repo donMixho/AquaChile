@@ -1,6 +1,8 @@
 import { supabase } from './supabaseClient';
 import { crearCarpetaDrive } from './driveService';
 import { traducirFaltaDeMigracion } from './erroresBase';
+import { normalizarNombre } from '../utils/nombre';
+import { extraerTextoPdf } from '../utils/lectorPdf';
 
 export const ESTADOS_CANDIDATO = ['Pendiente', 'En proceso', 'Apto', 'No apto'];
 
@@ -132,7 +134,9 @@ export const actualizarCandidato = async (id, datosActualizados) => {
   const cambios = {};
   Object.entries(datosActualizados ?? {}).forEach(([campo, valor]) => {
     const columna = COLUMNAS_EDITABLES[campo];
-    if (columna && valor !== undefined) cambios[columna] = valor;
+    if (columna && valor !== undefined) {
+      cambios[columna] = columna === 'nombre_completo' ? normalizarNombre(valor) : valor;
+    }
   });
 
   if (Object.keys(cambios).length === 0) {
@@ -207,9 +211,11 @@ const CODIGO_COLUMNA_AUSENTE = 'PGRST204';
 // asignación pendiente) se reintenta sin ella, como antes.
 export const crearCandidato = async (formData, archivoCv = null, { reclutadorId } = {}) => {
   const cv = archivoCv ? await subirCurriculum(archivoCv, formData.rut) : null;
+  // Texto del CV para el Asistente. Si no se puede leer (o no es PDF) el candidato se guarda igual.
+  const cvTexto = archivoCv ? await extraerTextoPdf(archivoCv) : null;
 
   const fila = {
-    nombre_completo: formData.nombreCompleto ?? formData.nombre,
+    nombre_completo: normalizarNombre(formData.nombreCompleto ?? formData.nombre),
     rut: formData.rut,
     cargo: formData.cargo,
     familia_cargo: formData.familiaCargo ?? formData.familia,
@@ -219,7 +225,15 @@ export const crearCandidato = async (formData, archivoCv = null, { reclutadorId 
   };
   const insertar = (valores) => supabase.from('candidatos').insert(valores).select().single();
 
-  let { data, error } = await insertar(reclutadorId ? { ...fila, reclutador_id: reclutadorId } : fila);
+  // Las columnas opcionales (reclutador_id, cv_texto) pueden faltar si su migración no se ejecutó:
+  // en ese caso se reintenta sin ellas, como antes.
+  const conExtras = { ...fila, ...(reclutadorId && { reclutador_id: reclutadorId }), ...(cvTexto && { cv_texto: cvTexto }) };
+  let { data, error } = await insertar(conExtras);
+  if (error?.code === CODIGO_COLUMNA_AUSENTE && cvTexto) {
+    const sinTexto = { ...conExtras };
+    delete sinTexto.cv_texto;
+    ({ data, error } = await insertar(sinTexto));
+  }
   if (error?.code === CODIGO_COLUMNA_AUSENTE && reclutadorId) {
     ({ data, error } = await insertar(fila));
   }

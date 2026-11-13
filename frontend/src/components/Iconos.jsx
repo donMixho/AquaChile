@@ -148,3 +148,18 @@ export const IconoUsuario = (props) => (
     <circle cx="12" cy="7" r="4" />
   </Icono>
 );
+
+export const IconoAsistente = (props) => (
+  <Icono {...props}>
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    <path d="M12 7v.01" />
+    <path d="m9.5 10.5 1 1 1.5-2 1.5 2 1-1" />
+  </Icono>
+);
+
+export const IconoCerrar = (props) => (
+  <Icono {...props}>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </Icono>
+);

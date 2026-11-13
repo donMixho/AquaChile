@@ -13,6 +13,7 @@ import { usePuede } from '../context/AuthContext';
 import { PERMISOS } from '../context/permisos';
 import Alerta from '../components/Alerta';
 import InsigniaEstado from '../components/InsigniaEstado';
+import BotonInformePdf from '../components/BotonInformePdf';
 import { IconoEliminar } from '../components/Iconos';
 
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -421,6 +422,13 @@ const AdminSeguimiento = () => {
                 </a>
               )}
             </div>
+
+            {['Apto', 'No apto'].includes(normalizarEstado(seleccionado)) && (
+              <BotonInformePdf
+                candidato={seleccionado}
+                solicitud={solicitudes.find((s) => s.id === seleccionado.solicitud_id) ?? null}
+              />
+            )}
 
             {puedeEliminar && (
               <div className="border-t border-gray-200 pt-4">

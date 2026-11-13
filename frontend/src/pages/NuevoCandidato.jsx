@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { ROLES } from '../context/permisos';
 import { formatearRut, rutValido, sugerirDigitoVerificador } from '../utils/rut';
 import { formatearTelefono, telefonoValido } from '../utils/telefono';
+import { formatearNombre } from '../utils/nombre';
 
 const normalizarEmail = (valor) => valor.replace(/\s/g, '').toLowerCase();
 
@@ -161,7 +162,7 @@ const NuevoCandidato = () => {
               type="text"
               required
               value={formulario.nombre}
-              onChange={(e) => setFormulario({ ...formulario, nombre: e.target.value })}
+              onChange={(e) => setFormulario({ ...formulario, nombre: formatearNombre(e.target.value) })}
               placeholder="Ej: Andrés Muñoz Soto"
               style={{
                 width: '100%',

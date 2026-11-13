@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { traducirFaltaDeMigracion } from './erroresBase';
+import { normalizarNombre } from '../utils/nombre';
 
 export const ESTADOS_PERFIL = ['activo', 'ausente', 'inactivo'];
 export const ROLES_INVITABLES = ['reclutador', 'operaciones'];
@@ -40,7 +41,7 @@ const llamarFuncion = async (cuerpo) => {
 
 export const invitarUsuario = async ({ email, nombre, rol }) => {
   const correo = String(email ?? '').trim();
-  const nombreLimpio = String(nombre ?? '').trim();
+  const nombreLimpio = normalizarNombre(nombre);
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
     throw new Error('Ingresa un correo válido (ej: nombre@aquachile.cl).');

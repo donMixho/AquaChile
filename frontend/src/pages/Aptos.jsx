@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { decidirCandidato, normalizarEstado, obtenerCandidatos } from '../services/candidatosService';
-import { obtenerEvaluacionesPorCandidatos } from '../services/evaluacionesService';
+import { obtenerEvaluacion, obtenerEvaluacionesPorCandidatos } from '../services/evaluacionesService';
+import { enviarInformeCandidato } from '../services/driveService';
+import { prepararInformeParaSubir, VERSIONES } from '../utils/informePdf';
 import { obtenerSolicitudes } from '../services/solicitudesService';
 import { usePuede } from '../context/AuthContext';
 import { PERMISOS } from '../context/permisos';
 import Alerta from '../components/Alerta';
+import BotonInformePdf from '../components/BotonInformePdf';
+import { iniciales } from '../utils/nombre';
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 const foco = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aqua-orange';
@@ -25,7 +29,7 @@ const Dato = ({ titulo, children }) => (
 );
 
 // Lo que el reclutador anotó en la entrevista, solo los campos que tienen contenido.
-const ResumenEntrevista = ({ candidato, evaluacion }) => {
+const ResumenEntrevista = ({ candidato, evaluacion, solicitud }) => {
   const r = evaluacion?.respuestas ?? {};
   const competencias = COMPETENCIAS.filter(([clave]) => Number(r[clave]) > 0);
   const lugar = evaluacion?.modalidad === 'Presencial' ? evaluacion.lugar : null;
@@ -57,6 +61,7 @@ const ResumenEntrevista = ({ candidato, evaluacion }) => {
       ) : (
         <p className="m-0 text-sm text-gray-600">Esta persona no tiene apuntes de entrevista registrados.</p>
       )}
+      {evaluacion && <BotonInformePdf candidato={candidato} solicitud={solicitud} />}
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
         {candidato.cv_url && (
           <a href={candidato.cv_url} target="_blank" rel="noreferrer" className="font-semibold text-orange-700 hover:underline">Ver currículum</a>
@@ -122,6 +127,29 @@ const Aptos = () => {
     .sort((a, b) => new Date(b.decidido_en ?? 0) - new Date(a.decidido_en ?? 0));
   const solicitudDe = (c) => solicitudes.find((s) => s.id === c.solicitud_id);
 
+  // Envía al correo del candidato el PDF final con la decisión y su justificación (versión sin
+  // observaciones internas). Es un extra: si falla, la decisión ya quedó guardada. Devuelve si salió.
+  const informarAlCandidato = async (guardado, solicitud) => {
+    try {
+      const evaluacion = evaluaciones[guardado.id] ?? (await obtenerEvaluacion(guardado.id));
+      const informe = await prepararInformeParaSubir({
+        candidato: guardado,
+        solicitud,
+        evaluacion: { ...evaluacion, finalizada: true, resultado: evaluacion?.resultado ?? 'Apto' },
+        version: VERSIONES.CANDIDATO
+      });
+      return await enviarInformeCandidato({
+        email: guardado.email,
+        nombre: guardado.nombre_completo,
+        decision: guardado.decision_operaciones,
+        folderUrl: guardado.drive_folder_url,
+        ...informe
+      });
+    } catch {
+      return false;
+    }
+  };
+
   const aplicar = async (candidato, decision, texto = '') => {
     if (guardandoId) return;
     setGuardandoId(candidato.id);
@@ -138,6 +166,15 @@ const Aptos = () => {
           ? `${candidato.nombre_completo} volvió a la lista por decidir.`
           : `${candidato.nombre_completo}: ${decision.toLowerCase()}.`
       });
+      if (decision !== null) {
+        const enviado = await informarAlCandidato(guardado, solicitudDe(candidato));
+        if (enviado) {
+          setAviso({
+            tipo: 'exito',
+            texto: `${candidato.nombre_completo}: ${decision.toLowerCase()}. Se envió el informe final a su correo.`
+          });
+        }
+      }
     } catch (error) {
       setAviso({ tipo: 'error', texto: error?.message ?? 'No se pudo guardar la decisión.' });
     } finally {
@@ -152,7 +189,7 @@ const Aptos = () => {
       : `${porDecidir.length} ${porDecidir.length === 1 ? 'candidato espera' : 'candidatos esperan'} tu decisión.`;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <header>
         <h1 className="m-0 text-2xl font-extrabold text-aqua-dark md:text-3xl">Aptos por decidir</h1>
         <p className="m-0 mt-1 text-sm text-gray-600" aria-live="polite">{resumen}</p>
@@ -177,29 +214,37 @@ const Aptos = () => {
             Cuando Reclutamiento deje a alguien como apto, aparecerá aquí con el resumen de su entrevista.
           </p>
         ) : (
-          <ul className="m-0 list-none divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white p-0">
+          <ul className="m-0 flex list-none flex-col gap-4 p-0">
             {porDecidir.map((c) => {
               const abierto = abiertoId === c.id;
               const descartando = descartandoId === c.id;
               const ocupado = guardandoId === c.id;
               return (
-                <li key={c.id}>
-                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-3.5">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-bold text-aqua-dark">{c.nombre_completo}</div>
-                      <div className="truncate text-sm text-gray-600">
-                        {c.cargo}
-                        {solicitudDe(c) && ` · ${solicitudDe(c).titulo}`}
-                        {c.created_at && ` · registrado ${hace(c.created_at)}`}
+                <li key={c.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                  <div className="flex flex-col gap-4 px-5 py-5">
+                    <div className="flex min-w-0 items-center gap-4">
+                      <span
+                        aria-hidden="true"
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-aqua-dark text-base font-bold text-white"
+                      >
+                        {iniciales(c.nombre_completo)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="truncate text-base font-bold text-aqua-dark">{c.nombre_completo}</div>
+                        <div className="text-sm text-gray-600">
+                          {c.cargo}
+                          {solicitudDe(c) && ` · ${solicitudDe(c).titulo}`}
+                          {c.created_at && ` · registrado ${hace(c.created_at)}`}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
                       <button
                         type="button"
                         aria-expanded={abierto}
                         aria-label={`${abierto ? 'Ocultar' : 'Ver'} la entrevista de ${c.nombre_completo}`}
                         onClick={() => setAbiertoId(abierto ? null : c.id)}
-                        className={`cursor-pointer border-none bg-transparent px-2 py-1 text-sm font-semibold text-aqua-blue underline ${foco}`}
+                        className={`mr-auto cursor-pointer border-none bg-transparent px-1 py-1 text-sm font-semibold text-aqua-blue underline ${foco}`}
                       >
                         {abierto ? 'Ocultar entrevista' : 'Ver entrevista'}
                       </button>
@@ -210,7 +255,7 @@ const Aptos = () => {
                             disabled={ocupado}
                             aria-label={`Seleccionar a ${c.nombre_completo}`}
                             onClick={() => aplicar(c, 'Seleccionado')}
-                            className={`cursor-pointer rounded-lg border-none bg-green-700 px-4 py-2 text-sm font-bold text-white transition-colors duration-200 hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-50 ${foco}`}
+                            className={`cursor-pointer rounded-lg border-none bg-green-700 px-6 py-2.5 text-sm font-bold text-white transition-colors duration-200 hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-50 ${foco}`}
                           >
                             Seleccionar
                           </button>
@@ -232,7 +277,7 @@ const Aptos = () => {
                     </div>
                   </div>
 
-                  {abierto && <ResumenEntrevista candidato={c} evaluacion={evaluaciones[c.id]} />}
+                  {abierto && <ResumenEntrevista candidato={c} evaluacion={evaluaciones[c.id]} solicitud={solicitudDe(c)} />}
 
                   {descartando && (
                     <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-4">
@@ -244,7 +289,7 @@ const Aptos = () => {
                         rows="2"
                         value={motivo}
                         onChange={(e) => setMotivo(e.target.value)}
-                        placeholder="Por qué no continúa en el proceso."
+                        placeholder="Por qué no continúa en el proceso. Este motivo se incluye en el informe que recibe el candidato."
                         className="w-full max-w-[65ch] resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800"
                       />
                       <div className="flex gap-2">
@@ -277,7 +322,7 @@ const Aptos = () => {
       {decididos.length > 0 && (
         <section aria-labelledby="t-decididos" className="flex flex-col gap-3">
           <h2 id="t-decididos" className="m-0 text-lg font-bold text-aqua-dark">Ya decididos</h2>
-          <ul className="m-0 list-none divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white p-0">
+          <ul className="m-0 list-none divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 bg-white/60 p-0">
             {decididos.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3.5">
                 <div className="min-w-0">

@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { actualizarCandidato, normalizarEstado, obtenerCandidatos } from '../services/candidatosService';
+import { formatearNombre } from '../utils/nombre';
 import BotonIcono from '../components/BotonIcono';
 import Alerta from '../components/Alerta';
 import Modal, { BotonModal } from '../components/Modal';
@@ -306,7 +307,7 @@ const Candidatos = () => {
                 id="edit-nombre"
                 type="text"
                 value={modalEditar.nombre}
-                onChange={(e) => setModalEditar({ ...modalEditar, nombre: e.target.value })}
+                onChange={(e) => setModalEditar({ ...modalEditar, nombre: formatearNombre(e.target.value) })}
                 className={claseCampo}
                 required
               />
