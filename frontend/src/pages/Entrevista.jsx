@@ -6,6 +6,8 @@ import { obtenerSolicitudPorId } from '../services/solicitudesService';
 import { finalizarEvaluacion, guardarBorrador, obtenerEvaluacion } from '../services/evaluacionesService';
 import Alerta from '../components/Alerta';
 import InsigniaEstado from '../components/InsigniaEstado';
+import { descargarInformePdf, prepararInformeParaSubir } from '../utils/informePdf';
+import { subirInformeDrive } from '../services/driveService';
 
 const ESPERA_AUTOGUARDADO_MS = 1500;
 
@@ -71,6 +73,7 @@ const Entrevista = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const evaluadorId = user?.id;
+  const nombreEvaluador = user?.user_metadata?.nombre ?? user?.email ?? null;
 
   const [candidato, setCandidato] = useState(null);
   const [solicitud, setSolicitud] = useState(null);
@@ -90,6 +93,8 @@ const Entrevista = () => {
   const [guardado, setGuardado] = useState('');
   const [error, setError] = useState('');
   const [finalizando, setFinalizando] = useState(false);
+  const [generandoPdf, setGenerandoPdf] = useState(false);
+  const [informeDriveUrl, setInformeDriveUrl] = useState('');
   const guardando = useRef(false);
 
   useEffect(() => {
@@ -127,8 +132,8 @@ const Entrevista = () => {
   }, [id]);
 
   const datosFicha = useCallback(
-    () => ({ respuestas: ficha, observaciones, enlaceReunion: enlace, modalidad, lugar, fechaEntrevista: fecha ?? hoy() }),
-    [ficha, observaciones, enlace, modalidad, lugar, fecha]
+    () => ({ respuestas: { ...ficha, evaluador_nombre: nombreEvaluador }, observaciones, enlaceReunion: enlace, modalidad, lugar, fechaEntrevista: fecha ?? hoy() }),
+    [ficha, nombreEvaluador, observaciones, enlace, modalidad, lugar, fecha]
   );
 
   const guardarAhora = useCallback(async () => {
@@ -169,6 +174,37 @@ const Entrevista = () => {
     setGuardado('');
   };
 
+  // Deja el informe definitivo en la carpeta de Drive del candidato. Es un extra: si falla, la
+  // entrevista ya quedó finalizada y el informe se puede descargar igual desde el botón.
+  const guardarInformeEnDrive = async (datos) => {
+    try {
+      const informe = await prepararInformeParaSubir({
+        candidato: { ...candidato, estado: resultado },
+        solicitud,
+        evaluador: nombreEvaluador,
+        evaluacion: {
+          respuestas: datos.respuestas,
+          observaciones: datos.observaciones,
+          modalidad: datos.modalidad,
+          enlaceReunion: datos.enlaceReunion,
+          lugar: datos.lugar,
+          fechaEntrevista: datos.fechaEntrevista,
+          resultado,
+          finalizada: true
+        }
+      });
+      const archivo = await subirInformeDrive({
+        rut: candidato.rut,
+        nombre: candidato.nombre_completo,
+        folderUrl: candidato.drive_folder_url,
+        ...informe
+      });
+      if (archivo) setInformeDriveUrl(archivo);
+    } catch {
+      // Sin Drive no se bloquea nada.
+    }
+  };
+
   const finalizar = async () => {
     if (finalizando || finalizada) return;
     if (!resultado) {
@@ -178,14 +214,44 @@ const Entrevista = () => {
     setError('');
     setFinalizando(true);
     try {
-      await finalizarEvaluacion(candidato, evaluadorId, datosFicha(), resultado);
+      const finalizado = datosFicha();
+      await finalizarEvaluacion(candidato, evaluadorId, finalizado, resultado);
       setCandidato((c) => ({ ...c, estado: resultado }));
       setFinalizada(true);
       setSucio(false);
+      guardarInformeEnDrive(finalizado);
     } catch (e) {
       setError(e?.message ?? 'No se pudo finalizar la entrevista.');
     } finally {
       setFinalizando(false);
+    }
+  };
+
+  // Informe con lo que hay en pantalla en este momento, esté o no guardado.
+  const descargarPdf = async () => {
+    if (generandoPdf) return;
+    setGenerandoPdf(true);
+    setError('');
+    try {
+      await descargarInformePdf({
+        candidato,
+        solicitud,
+        evaluador: nombreEvaluador,
+        evaluacion: {
+          respuestas: ficha,
+          observaciones,
+          modalidad,
+          enlaceReunion: enlace,
+          lugar,
+          fechaEntrevista: fecha ?? hoy(),
+          resultado: finalizada ? resultado : null,
+          finalizada
+        }
+      });
+    } catch (e) {
+      setError(`No se pudo generar el PDF: ${e?.message ?? 'error desconocido'}`);
+    } finally {
+      setGenerandoPdf(false);
     }
   };
 
@@ -425,6 +491,22 @@ const Entrevista = () => {
                 <Link to="/" className="font-bold text-green-900 underline">Volver a mi bandeja</Link>
               </Alerta>
             )}
+
+            <div className="flex flex-wrap items-center gap-4">
+              {informeDriveUrl && (
+                <a href={informeDriveUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-orange-700 hover:underline">
+                  Informe guardado en Drive
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={descargarPdf}
+                disabled={generandoPdf}
+                className={`cursor-pointer rounded-lg border border-aqua-blue bg-white px-5 py-2.5 text-sm font-bold text-aqua-blue transition-colors duration-200 hover:bg-aqua-light disabled:cursor-not-allowed disabled:opacity-50 ${foco}`}
+              >
+                {generandoPdf ? 'Generando PDF...' : finalizada ? 'Descargar PDF de la entrevista' : 'Descargar borrador en PDF'}
+              </button>
+            </div>
 
             {!finalizada && (
               <div className="flex flex-wrap items-center gap-4">

@@ -4,6 +4,7 @@ import { PERMISOS, ROLES } from './context/permisos'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AEntrevista, CandidatosPorRol, InicioPorRol, LayoutPorRol } from './components/PorRol'
 import AdminEquipo from './pages/AdminEquipo'
+import AdminAuditoria from './pages/AdminAuditoria'
 import AdminSeguimiento from './pages/AdminSeguimiento'
 import Entrevista from './pages/Entrevista'
 import DefinirContrasena from './pages/DefinirContrasena'
@@ -28,6 +29,9 @@ function App() {
 
               <Route element={<ProtectedRoute permiso={PERMISOS.GESTIONAR_EQUIPO} />}>
                 <Route path="equipo" element={<AdminEquipo />} />
+              </Route>
+              <Route element={<ProtectedRoute permiso={PERMISOS.VER_AUDITORIA} />}>
+                <Route path="auditoria" element={<AdminAuditoria />} />
               </Route>
               <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
                 <Route path="seguimiento" element={<AdminSeguimiento />} />

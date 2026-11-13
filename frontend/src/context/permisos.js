@@ -18,7 +18,8 @@ export const PERMISOS = {
   CONFIGURACION: 'configuracion',
   GESTIONAR_EQUIPO: 'gestionar_equipo',
   ASIGNAR_CASOS: 'asignar_casos',
-  DECIDIR_APTOS: 'decidir_aptos'
+  DECIDIR_APTOS: 'decidir_aptos',
+  VER_AUDITORIA: 'ver_auditoria'
 };
 
 const {

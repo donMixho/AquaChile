@@ -19,7 +19,9 @@ module.exports = function (config) {
       // Webhook ficticio: las pruebas espían fetch, nunca se llama a Google.
       plugins: [
         new webpack.DefinePlugin({
-          'import.meta.env.VITE_GOOGLE_DRIVE_WEBHOOK_URL': JSON.stringify('https://webhook.test/drive')
+          'import.meta.env.VITE_GOOGLE_DRIVE_WEBHOOK_URL': JSON.stringify('https://webhook.test/drive'),
+          'import.meta.env.VITE_DRIVE_SUBIR_INFORMES': JSON.stringify('true'),
+          'import.meta.env.VITE_ENVIAR_INFORME_CORREO': JSON.stringify('true')
         })
       ],
       resolve: {

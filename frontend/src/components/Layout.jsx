@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import LogoAquaChile from './LogoAquaChile';
+import AsistenteChat from './AsistenteChat';
 import { AuthContext, usePuede } from '../context/AuthContext';
 import { ETIQUETAS_ROL, PERMISOS, ROLES } from '../context/permisos';
 import { IconoUsuario } from './Iconos';
@@ -107,6 +108,8 @@ const Layout = () => {
       <main className="flex-1 w-full max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">
         <Outlet />
       </main>
+
+      <AsistenteChat />
 
       <footer className="bg-aqua-dark text-gray-300 text-center text-xs py-4 px-4">
         AquaChile S.A. &copy; 2026 • Sistema de Evaluación Psicolaboral Automatizado

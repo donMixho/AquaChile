@@ -9,49 +9,22 @@
 
 Para garantizar la confidencialidad de las evaluaciones psicolaborales y cumplir con la normativa de protección de datos personales, el sistema implementa una arquitectura de seguridad por capas en el Backend.
 
-### 1.1 Definición de Perfiles y Matriz de Permisos
-El sistema distingue tres roles principales dentro del flujo de gestión de personas:
+### 1.1 Estado real: perfiles y matriz de permisos (implementado)
+El sistema corre sobre **Supabase** (Auth + Postgres + RLS), no sobre Spring Boot. Los roles vigentes son tres y viven en `src/context/permisos.js` (fuente única):
 
-| Rol / Perfil | Descripción del Usuario | Permisos de Sistema |
+| Rol | Puede | No puede |
 | :--- | :--- | :--- |
-| **Reclutador / Analista de Selección** | Encargado de levantar solicitudes de evaluación y cargar datos de candidatos. | - Crear, editar y listar Candidatos.<br>- Crear y asignar Solicitudes de Evaluación.<br>- Consultar el estado general del pipeline de selección.<br>- *Restricción:* No puede editar ni ver el detalle clínico de la informe psicolaboral. |
-| **Psicólogo / Evaluador Psicolaboral** | Profesional interno o externo encargado de realizar la entrevista y aplicar test. | - Visualizar solicitudes asignadas a su perfil.<br>- Llenar formularios de evaluación psicolaboral.<br>- Adjuntar archivos/informes clínicos en PDF.<br>- Definir el dictamen final ("Apto", "No Apto", "Apto con Observaciones").<br>- *Restricción:* No puede modificar datos de la solicitud ni crear nuevos candidatos. |
-| **Administrador / Jefatura de RRHH** | Dirección del área con acceso global para toma de decisiones y auditorías. | - Acceso total de lectura y escritura.<br>- Gestión de usuarios y asignación de roles.<br>- Descarga de reportes ejecutivos en Excel/PDF.<br>- Acceso a logs de auditoría del sistema. |
+| **Reclutador** | Crear y editar candidatos, crear solicitudes, evaluar. | Eliminar, configurar, decidir aptos. |
+| **Operaciones** | Ver solicitudes y candidatos; decidir sobre los aptos. | Crear, editar, evaluar, eliminar. |
+| **Administrador** | Supervisar, asignar casos, gestionar equipo y accesos, eliminar, **ver el registro de auditoría**. | Trabajo operativo (registrar, evaluar, decidir aptos) desde la interfaz. |
 
----
+Defensa por capas:
+- **Interfaz:** `<ProtectedRoute permiso=... />` y `usePuede()` ocultan rutas y botones.
+- **Base de datos:** políticas RLS (`docs/politicas_rls_candidatos.sql`, `docs/migracion_perfiles.sql`) leen el rol desde `app_metadata` (solo escribible por el backend) y rechazan a usuarios con perfil `inactivo`.
+- **Privilegios:** invitar, cambiar rol y bloquear cuentas solo pasa por la Edge Function `admin-usuarios` (clave `service_role` fuera del navegador).
 
-### 1.2 Mecanismo de Autenticación e Inicio de Sesión (Backend + Frontend)
-
-Para conectar los permisos del Backend con la interfaz de React se especifica el siguiente estándar:
-
-```
-[ Usuario (Psicólogo / Reclutador) ]
-│
-▼
-[ Iniciar sesión en React (Email / Pass) ] ────(Opción SSO)─── ► [ Google Workspace / Azure AD ]
-│                                                                              │
-▼ (POST /api/v1/auth/login)                                    ▼ (OAuth2 Token)
-[ Spring Security + BCripta ] ◄─────────────────────────────────────────────┘
-│
-▼
-[ Generación de JWT (Access Token + Refresh Token) ]
-│
-▼
-[ React almacena JWT y adjunta Header: Authorization: Bearer <token> ]
-```
-
-1. **Autenticación Nativa (JWT - JSON Web Token):**
-   - El backend en Spring Boot valida credenciales encriptadas con `BCryptPasswordEncoder`.
-   - Si la autenticación es exitosa, emite un token **JWT firmado con clave asimétrica (RSA/HMAC)** conteniendo el ID del usuario, su email y su lista de roles/autoridades (`ROLE_RECLUTADOR`, `ROLE_PSICOLOGO`).
-   - El token tiene una vigencia limitada (ej. 60 minutos) apoyado por un *Refresh Token* seguro almacenado en una cookie `HttpOnly` para evitar ataques XSS.
-
-2. **Integración con Inicio de Sesión Corporativo (SSO / OAuth2):**
-   - Dado que los reclutadores y psicólogos utilizan cuentas institucionales (Google Workspace o Microsoft 365/Azure AD), el backend integrará el módulo **`spring-boot-starter-oauth2-client`**.
-   - Los usuarios podrán iniciar sesión presionando *"Iniciar Sesión con Google/Microsoft"*, delegando la autenticación al proveedor corporativo y conectando automáticamente sus permisos en la base de datos local mediante su correo institucional.
-
-3. **Protección de Rutas y Endpoints:**
-   - **Backend:** Uso de anotaciones `@PreAuthorize("hasRole('PSICOLOGO')")` en los controladores de Java para denegar acceso a nivel de API a quienes no posean el rol correspondiente.
-   - **Frontend:** Implementación del componente `<ProtectedRoute allowedRoles={['ROLE_PSICOLOGO']} />` en React Router para restringir la renderización de vistas según el perfil logueado.
+### 1.2 Autenticación (implementado con Supabase Auth)
+Email y contraseña vía Supabase Auth (hash y JWT los gestiona Supabase; el token vive en el cliente y expira). El diseño original con Spring Security + JWT propio, SSO Google/Azure y `@PreAuthorize` queda como **hoja de ruta** si se migra a un backend propio.
 
 ---
 
@@ -94,30 +67,24 @@ Para evitar errores comunes de corrupción de caracteres (tildes, letras "ñ", s
 
 ---
 
-## 4. Estrategia de Auditoría de Seguridad e Integridad (CODEX Security / SonarQube)
+## 4. Estrategia de Auditoría de Seguridad e Integridad
 
-Para realizar análisis estáticos de seguridad (SAST) y análisis dinámicos (DAST) sin generar impedimentos durante el desarrollo:
+### 4.1 Auditoría de código
+**Frontend (aplicado):**
+- `npm run lint` (ESLint) sin errores.
+- `npm audit` / `npm audit fix` ejecutado: se corrigieron las vulnerabilidades altas (vite, zod, source-map-js). Quedan 8 de severidad moderada, solo en herramientas de desarrollo (eslint, karma-webpack); `npm audit fix --force` las arreglaría pero con cambios incompatibles, por lo que se difieren.
+- Revisión de secretos: no hay credenciales en el código. `.env` está en `.gitignore` y solo contiene la clave pública `anon` (la `service_role` solo existe en la Edge Function). El `docker-compose.yml` contiene una contraseña de desarrollo local: cambiarla antes de cualquier despliegue.
+- Inyección SQL: el cliente usa solo el API parametrizado de Supabase (sin SQL armado a mano).
 
-### 4.1 Fases de Auditoría de Código
-1. **Fase Frontend (Estado Actual):**
-   - Ejecución de linters sintácticos (`ESLint`) para mantener código limpio.
-   - Auditorías de dependencias vulnerables mediante `npm audit`.
-2. **Fase Backend Integrado (Spring Boot + DB):**
-   - Momento en que se habilitará la extensión/herramienta **CODEX Security** y **SonarQube**.
-   - **Alcance del Análisis:**
-     - Detección de código duro o credenciales expuestas (*Hardcoded Secrets*).
-     - Validación de inyecciones SQL (asegurando el uso exclusivo de `JPA Repositories` o consultas parametrizadas `JPQL`).
-     - Verificación de políticas CORS para restringir peticiones HTTP exclusivamente desde el dominio oficial del Frontend.
-     - Evaluación de vulnerabilidades OWASP Top 10.
+**Pendiente (si se crea backend propio):** SonarQube / CODEX Security, política CORS restringida al dominio del frontend y revisión OWASP Top 10.
 
-### 4.2 Trazabilidad y Logs de Auditoría (Audit Trail)
-Creación de la tabla `log_auditoria` en la base de datos para registrar la actividad del sistema de forma inalterable:
+### 4.2 Trazabilidad y logs de auditoría (implementado)
+`docs/migracion_auditoria.sql` crea la tabla `log_auditoria` y triggers sobre `candidatos`, `solicitudes`, `evaluaciones` y `perfiles`:
 
-```
-[ Evento en el Sistema ] ── ► [ Interceptor Spring AOP ] ── ► [ Inserción en Tabla LogAuditoria ]
-```
-
-- **Campos registrados:** ID de usuario, rol, tipo de acción (`CREAR_EVALUACION`, `DESCARGAR_INFORME`, `LOGIN_FALLIDO`), dirección IP, fecha/hora exacta y payload modificado.
+- **Campos:** usuario, email, rol, acción (`CREAR`/`ACTUALIZAR`/`ELIMINAR`), tabla, id del registro, datos antes y después, fecha/hora.
+- **Inalterable:** sin permisos de escritura desde la app; solo se inserta desde el trigger.
+- **Acceso:** solo un administrador activo puede leerlo (pantalla **Auditoría**, `/auditoria`). La pantalla muestra qué campos cambiaron, no sus valores.
+- No incluye aún `LOGIN_FALLIDO` ni `DESCARGAR_INFORME` (requieren eventos de Auth y de descarga).
 
 ---
 

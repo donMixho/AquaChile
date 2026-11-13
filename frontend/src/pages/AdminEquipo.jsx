@@ -12,6 +12,7 @@ import {
   obtenerEquipo
 } from '../services/equipoService';
 import Alerta from '../components/Alerta';
+import { formatearNombre } from '../utils/nombre';
 import { IconoInvitar } from '../components/Iconos';
 
 const ESTILO_ESTADO = {
@@ -186,7 +187,7 @@ const AdminEquipo = () => {
               required
               autoComplete="off"
               value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              onChange={(e) => setForm({ ...form, nombre: formatearNombre(e.target.value) })}
               className={campo}
             />
           </div>

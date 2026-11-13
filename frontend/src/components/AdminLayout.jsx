@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import LogoAquaChile from './LogoAquaChile';
+import AsistenteChat from './AsistenteChat';
 import { AuthContext } from '../context/AuthContext';
 import { ETIQUETAS_ROL, PERMISOS, tienePermiso } from '../context/permisos';
 import {
@@ -8,16 +9,18 @@ import {
   IconoEquipo,
   IconoMenu,
   IconoResumen,
-  IconoSalir
+  IconoSalir,
+  IconoVer
 } from './Iconos';
 
-// La jefatura mira, decide y gestiona al equipo: tres entradas. El trabajo operativo con
+// La jefatura mira, decide y gestiona al equipo: cuatro entradas. El trabajo operativo con
 // solicitudes y candidatos (crear, editar, evaluar) es del reclutador y no está en este menú.
 const GRUPOS = [
   [
     { name: 'Resumen', path: '/', icono: IconoResumen, exacto: true },
     { name: 'Seguimiento', path: '/seguimiento', icono: IconoCandidatos, permiso: PERMISOS.VER_CANDIDATOS },
-    { name: 'Equipo y accesos', path: '/equipo', icono: IconoEquipo, permiso: PERMISOS.GESTIONAR_EQUIPO }
+    { name: 'Equipo y accesos', path: '/equipo', icono: IconoEquipo, permiso: PERMISOS.GESTIONAR_EQUIPO },
+    { name: 'Auditoría', path: '/auditoria', icono: IconoVer, permiso: PERMISOS.VER_AUDITORIA }
   ]
 ];
 
@@ -133,6 +136,8 @@ const AdminLayout = () => {
           <Outlet />
         </div>
       </main>
+
+      <AsistenteChat />
     </div>
   );
 };

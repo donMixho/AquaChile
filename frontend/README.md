@@ -10,6 +10,8 @@
 
 ## 🏢 1. Introducción y Guía de Instalación
 
+> **Atajo en Windows:** en la raíz del proyecto, `instalar.bat` instala Node.js (con winget, si falta), las dependencias y crea `frontend/.env` desde `frontend/.env.example`. Luego `iniciar.bat` levanta el sistema y abre el navegador. La base de datos y las Edge Functions siguen los pasos de abajo.
+
 ### ¿Qué es AquaChile y qué resuelve este MVP?
 
 **AquaChile** es una compañía de producción acuícola y salmonera con operaciones desde la Región de Los Lagos hasta Magallanes. Este MVP es una aplicación web de **Gestión y Evaluación Psicolaboral** para el área de Reclutamiento y Selección (R&S).
@@ -44,8 +46,9 @@
    VITE_SUPABASE_URL=https://<tu-proyecto>.supabase.co
    VITE_SUPABASE_ANON_KEY=<tu-anon-key>
    VITE_GOOGLE_DRIVE_WEBHOOK_URL=https://script.google.com/macros/s/<id>/exec
+   VITE_DRIVE_SUBIR_INFORMES=true
    ```
-   > `VITE_GOOGLE_DRIVE_WEBHOOK_URL` es opcional: sin ella el sistema funciona igual, pero no crea carpetas en Drive. El Web App de Apps Script debe estar desplegado con acceso **"Cualquier persona"**.
+   > `VITE_GOOGLE_DRIVE_WEBHOOK_URL` es opcional: sin ella el sistema funciona igual, pero no crea carpetas en Drive. El Web App de Apps Script debe estar desplegado con acceso **"Cualquier persona"**. `VITE_DRIVE_SUBIR_INFORMES=true` (opcional) guarda el PDF de la entrevista en la carpeta del candidato al finalizarla; actívala solo después de actualizar el Apps Script con `docs/apps_script_informes.gs`.
 5. **Preparar la base de datos:** en el SQL Editor de Supabase, ejecutar **uno por uno y en este orden**. Se pega el *contenido* de cada archivo (no su nombre) y cada uno debe terminar en «Success»:
    1. `docs/schema.sql`
    2. `docs/migracion_estado_candidatos.sql`
@@ -57,6 +60,8 @@
    8. `docs/migracion_asignacion.sql` (responsable y solicitud de cada candidato)
    9. `docs/migracion_evaluaciones.sql` (apuntes y modalidad de las entrevistas)
    10. `docs/migracion_decision_operaciones.sql` (decisión de Operaciones sobre los aptos)
+   11. `docs/migracion_auditoria.sql` (registro de auditoría inalterable de los cambios en datos sensibles)
+   12. `docs/migracion_cv_texto.sql` (texto de los CV en PDF, para que el Asistente IA busque por su contenido)
 
    Después de ejecutarlos, cada usuario debe cerrar sesión y volver a entrar para renovar su token. Si falta alguna migración, la pantalla afectada lo avisa con el nombre exacto del archivo que hay que ejecutar.
 6. **Gestión del equipo (invitar y bloquear personas):** requiere desplegar la Edge Function, porque usa la clave `service_role` que nunca debe estar en el navegador:
@@ -65,7 +70,12 @@
    supabase secrets set SITE_URL=https://tu-dominio.cl
    ```
    Además, en Supabase > Authentication > URL Configuration, agregar `https://tu-dominio.cl/definir-contrasena` a las URL de redirección permitidas.
-7. **Iniciar el servidor de desarrollo:**
+7. **Asistente IA (opcional):** requiere desplegar la Edge Function y cargar la clave del modelo (ver sección «Asistente Inteligente»):
+   ```bash
+   supabase functions deploy asistente-candidatos
+   supabase secrets set LLM_API_KEY=tu-clave
+   ```
+8. **Iniciar el servidor de desarrollo:**
    ```bash
    npm run dev
    ```
@@ -86,7 +96,8 @@ frontend/
 ├── docker-compose.yml
 ├── supabase/
 │   └── functions/
-│       └── admin-usuarios/    # Edge Function: invitar y bloquear personas (service_role)
+│       ├── admin-usuarios/    # Edge Function: invitar y bloquear personas (service_role)
+│       └── asistente-candidatos/  # Edge Function: Asistente IA con filtrado por rol
 ├── scripts/
 │   └── vista-previa/          # genera las capturas del README con datos de muestra (npm run capturas)
 ├── .env                       # variables VITE_* (no se versiona)
@@ -104,6 +115,8 @@ frontend/
 │   ├── migracion_asignacion.sql
 │   ├── migracion_evaluaciones.sql
 │   ├── migracion_decision_operaciones.sql
+│   ├── migracion_auditoria.sql
+│   ├── apps_script_informes.gs  # código a pegar en el Apps Script para guardar el PDF en Drive
 │   ├── DOCUMENTO_COBERTURA_TESTING.md
 │   ├── HOJA_DE_RUTA_Y_ESPECIFICACIONES_TECNICAS.md
 │   └── imagenes/              # login y pantalla de inicio de cada rol
@@ -123,6 +136,7 @@ frontend/
     │   ├── Modal.jsx
     │   ├── Alerta.jsx
     │   ├── BotonIcono.jsx
+    │   ├── BotonInformePdf.jsx    # descarga el PDF de una entrevista guardada
     │   ├── Iconos.jsx
     │   ├── InsigniaEstado.jsx
     │   ├── InsigniaSolicitud.jsx
@@ -137,6 +151,7 @@ frontend/
     │   ├── AdminResumen.jsx        # inicio del admin: avance, equipo, solicitudes
     │   ├── AdminSeguimiento.jsx    # supervisión de candidatos, asignación y eliminación
     │   ├── AdminEquipo.jsx         # invitar, ausentar o inactivar personas
+    │   ├── AdminAuditoria.jsx      # registro de auditoría (solo administrador)
     │   ├── MiBandeja.jsx           # inicio del reclutador
     │   ├── Entrevista.jsx          # apuntes de la entrevista con autoguardado
     │   ├── Aptos.jsx               # inicio de Operaciones: seleccionar o descartar
@@ -154,12 +169,14 @@ frontend/
     │   ├── solicitudesService.js
     │   ├── equipoService.js        # perfiles e invitaciones
     │   ├── evaluacionesService.js  # entrevistas
+    │   ├── auditoriaService.js     # lectura del registro de auditoría
     │   ├── erroresBase.js          # traduce «falta ejecutar migración» a un mensaje claro
-    │   ├── driveService.js         # Webhook de Google Apps Script
+    │   ├── driveService.js         # Webhook de Google Apps Script: carpeta e informe PDF
     │   └── __tests__/
     ├── utils/
     │   ├── rut.js             # formateo y validación de RUT (módulo 11)
     │   ├── telefono.js        # formateo y validación de móviles chilenos
+    │   ├── informePdf.js      # informe PDF de la entrevista (jsPDF, estilo acta/contrato)
     │   └── __tests__/
     └── test/
         ├── helpers.jsx
@@ -178,9 +195,10 @@ frontend/
 | **Backend y nube** | **Supabase Auth** | Inicio de sesión, invitaciones y roles (`app_metadata.rol`) |
 | | **Supabase PostgreSQL** | Candidatos, solicitudes, perfiles del equipo y entrevistas |
 | | **Row Level Security (RLS) y triggers** | Restringen lectura, edición, asignación, decisión y borrado en la base |
-| | **Supabase Edge Functions** | `admin-usuarios`: invita y bloquea personas con la clave `service_role` |
+| | **Supabase Edge Functions** | `admin-usuarios`: invita y bloquea personas con la clave `service_role`. `asistente-candidatos`: consulta al modelo de lenguaje con los datos permitidos para cada rol |
 | | **Supabase Storage** | Almacenamiento de currículums (CV) |
-| | **Google Apps Script Webhook** | Crea la carpeta de Google Drive de cada candidato |
+| | **Google Apps Script Webhook** | Crea la carpeta de Google Drive de cada candidato y guarda en ella el informe PDF |
+| **Documentos** | **jsPDF** | Genera en el navegador el informe PDF de la entrevista (los datos no salen a servicios externos) |
 | **Calidad** | **Karma** + **Jasmine** | Ejecución de pruebas unitarias en Chrome Headless |
 | | React Testing Library | Pruebas de componentes y vistas |
 | | ESLint | Análisis estático del código |
@@ -241,9 +259,9 @@ Recibe únicamente a los candidatos que Reclutamiento dejó como aptos. Puede ab
 
 | Rol | Correo | Contraseña | Qué hace |
 | :--- | :--- | :--- | :--- |
-| **Administrador** | `admin@aquachile.cl` | `AquaAdmin#2026_Secure` | Jefatura. Ve el **Resumen** de gestión, hace **Seguimiento** de todos los candidatos (filtra, abre el detalle, **asigna responsable y solicitud**, y es el único que puede **eliminar**, siempre desde el detalle), puede abrir **solicitudes de cargo**, y gestiona el **Equipo y accesos**: invita personas por correo y las deja activas, ausentes o inactivas. Interfaz con navegación lateral. No hace el trabajo operativo (registrar candidatos, entrevistar) ni decide sobre los aptos. |
-| **Reclutador** | `reclutador@aquachile.cl` | `AquaReclut#2026_Secure` | Trabaja desde **Mi bandeja**, donde ve los candidatos que tiene asignados o que él mismo registró (en *Candidatos* puede cambiar a «Todos»). Registra candidatos y solicitudes, y realiza la **entrevista** (videollamada con enlace de Google Meet o presencial con lugar) con apuntes que se guardan solos; al finalizar decide *Apto* o *No apto*. **No elimina ni asigna.** |
-| **Operaciones** | `operaciones@aquachile.cl` | `AquaOps#2026_Secure` | Recibe a los *Aptos* en **Aptos por decidir**, lee el resumen de la entrevista y decide **Seleccionar** o **Descartar** (con motivo). Sin crear, editar, entrevistar ni eliminar. Solo ve los apuntes de candidatos ya aptos. |
+| **Administrador** | `admin@aquachile.cl` | `AquaAdmin#2026_Secure` | Jefatura. Ve el **Resumen** de gestión, hace **Seguimiento** de todos los candidatos (filtra, abre el detalle, **asigna responsable y solicitud**, y es el único que puede **eliminar**, siempre desde el detalle), puede abrir **solicitudes de cargo**, y gestiona el **Equipo y accesos**: invita personas por correo y las deja activas, ausentes o inactivas, y consulta el **registro de Auditoría**. Interfaz con navegación lateral. No hace el trabajo operativo (registrar candidatos, entrevistar) ni decide sobre los aptos. |
+| **Reclutador** | `reclutador@aquachile.cl` | `AquaReclut#2026_Secure` | Trabaja desde **Mi bandeja**, donde ve los candidatos que tiene asignados o que él mismo registró (en *Candidatos* puede cambiar a «Todos»). Registra candidatos y solicitudes, y realiza la **entrevista** (videollamada con enlace de Google Meet o presencial con lugar) con apuntes que se guardan solos; al finalizar decide *Apto* o *No apto*, y descarga el **informe PDF** de la entrevista. **No elimina ni asigna.** |
+| **Operaciones** | `operaciones@aquachile.cl` | `AquaOps#2026_Secure` | Recibe a los *Aptos* en **Aptos por decidir**, lee el resumen de la entrevista y decide **Seleccionar** o **Descartar** (con motivo). Sin crear, editar, entrevistar ni eliminar. Solo ve los apuntes de candidatos ya aptos y puede descargar su informe PDF. |
 
 > ⚠️ Estas credenciales son de demostración para el MVP. En un entorno real deben cambiarse y no publicarse en el repositorio. Las personas nuevas se dan de alta por **invitación por correo** (ellas crean su propia contraseña), no con contraseñas compartidas.
 
@@ -260,6 +278,8 @@ Recibe únicamente a los candidatos que Reclutamiento dejó como aptos. Puede ab
 | Asignar responsable y solicitud | ✅ | ❌ | ❌ |
 | Invitar, ausentar o inactivar personas | ✅ | ❌ | ❌ |
 | Eliminar candidato (confirmando con el nombre) | ✅ | ❌ | ❌ |
+| Descargar el PDF de la entrevista | ✅ (finalizadas) | ✅ (también borrador) | ✅ (aptos) |
+| Ver el registro de auditoría | ✅ | ❌ | ❌ |
 
 > La matriz describe lo que cada rol puede hacer **desde la interfaz**. A nivel de base de datos el administrador conserva acceso amplio como respaldo; Operaciones y reclutador quedan limitados por las políticas y los triggers.
 
@@ -275,81 +295,83 @@ Recibe únicamente a los candidatos que Reclutamiento dejó como aptos. Puede ab
 
 ## 📖 7. Historia de Usuario: del requerimiento al ingreso
 
-Esta historia recorre el flujo completo con las mismas personas que aparecen en las capturas. Todos los nombres son ficticios.
+Esta historia sigue un caso completo, de principio a fin. Los nombres son ficticios.
 
-| Persona | Rol en el sistema | Qué necesita |
+| Persona | Rol | Qué necesita |
 | :--- | :--- | :--- |
-| **Marcela Soto** | Administrador (jefatura de R&S) | Ver cómo avanza el proceso, repartir el trabajo y controlar quién tiene acceso |
-| **Camila Rojas** | Reclutador | Saber a quién entrevistar hoy y dejar registro de cada entrevista |
-| **Jorge Paredes** | Operaciones (jefe de planta) | Elegir, entre los candidatos ya filtrados, a quienes se incorporan a su turno |
-| **Valentina Muñoz** | Candidata (no usa el sistema) | Postular a un cargo y ser entrevistada |
+| **Marcela Soto** | Administrador (jefatura de R&S) | Ver el avance, repartir el trabajo y controlar los accesos |
+| **Camila Rojas** | Reclutador | Saber a quién entrevistar y registrar cada entrevista |
+| **Jorge Paredes** | Operaciones (jefe de planta) | Elegir entre los candidatos ya aptos |
+| **Valentina Muñoz** | Candidata (no usa el sistema) | Postular y ser entrevistada |
 
-**Historia general.** *Como jefatura de R&S de AquaChile, quiero que cada persona vea y haga solo lo que le corresponde, para llenar las vacantes de las plantas con un proceso ordenado, sin planillas dispersas y con registro de quién decidió qué.*
+**Historia general.** *Como jefatura de R&S, quiero que cada persona vea y haga solo lo que le toca, para cubrir las vacantes con un proceso ordenado y con registro de quién decidió qué.*
 
 ### Paso 0 · Alta del equipo
 
-> **Como** Marcela, **quiero** invitar a Camila y a Jorge por correo, **para** que cada uno cree su propia contraseña sin compartir claves.
+> **Como** Marcela, **quiero** invitar a Camila y a Jorge por correo, **para** que cada uno cree su propia contraseña.
 
-- En **Equipo y accesos** escribe nombre, correo y rol, y pulsa *Enviar invitación*.
-- Camila recibe un correo, entra por el enlace, crea su contraseña y llega a **su** pantalla de inicio.
-- **Criterio de aceptación:** la persona aparece en la lista como *Activo*, con el rol elegido.
+- En **Equipo y accesos**: nombre, correo y rol, y *Enviar invitación*.
+- Camila abre el enlace del correo, crea su contraseña y entra.
+- **Listo cuando:** la persona aparece como *Activo* con su rol.
 
 ### Paso 1 · Nace una necesidad
 
-> **Como** Marcela, **quiero** abrir una solicitud de cargo cuando Operaciones necesita personal, **para** saber cuántas vacantes hay que cubrir.
+> **Como** Marcela, **quiero** crear una solicitud de cargo, **para** saber cuántas vacantes hay que cubrir.
 
-- Jorge avisa que necesita tres operarios para el turno de noche. Marcela crea la solicitud *«Reposición turno noche planta»* con 3 vacantes.
-- **Criterio de aceptación:** la solicitud aparece en el Resumen de Marcela como *Abierta*, con «0 de 3 vacantes cubiertas».
+- Jorge pide 3 operarios para el turno de noche. Marcela crea la solicitud con 3 vacantes.
+- **Listo cuando:** el Resumen la muestra como *Abierta*, con «0 de 3 vacantes cubiertas».
 
 ### Paso 2 · Se registra a la candidata
 
-> **Como** Camila, **quiero** registrar a Valentina con su CV, **para** que quede en una base única y con su carpeta de Drive.
+> **Como** Camila, **quiero** registrar a Valentina con su CV, **para** tenerla en una base única.
 
-- Camila usa *+ Nuevo candidato*. El sistema valida RUT, correo y teléfono, sube el CV y crea la carpeta de Drive sin que ella haga nada más.
-- Valentina queda en estado **Pendiente** y **a nombre de Camila**, así que aparece de inmediato en *Mi bandeja*.
-- **Criterio de aceptación:** Valentina está en «Por entrevistar» de Camila, y no en la bandeja de ningún otro reclutador.
+- Con *+ Nuevo candidato*, Camila llena los datos y sube el CV. El sistema valida RUT, correo y teléfono, y crea la carpeta de Drive solo.
+- Valentina queda **Pendiente** y a nombre de Camila.
+- **Listo cuando:** Valentina aparece en *Mi bandeja* de Camila y de nadie más.
 
-### Paso 3 · La jefatura reparte y vincula
+### Paso 3 · Se asigna y se vincula
 
-> **Como** Marcela, **quiero** vincular a Valentina con la solicitud y reasignarla si hace falta, **para** que cada candidato cuente para una vacante y tenga un responsable.
+> **Como** Marcela, **quiero** vincular a Valentina con la solicitud y reasignarla si hace falta, **para** que todo candidato tenga vacante y responsable.
 
-- En **Seguimiento** abre a Valentina y elige la solicitud en el detalle. Se guarda al elegir.
-- Cuando algo queda sin dueño, el Resumen avisa «1 candidato sin responsable. **Asignar**» y lleva a la lista ya filtrada.
-- **Criterio de aceptación:** solo Marcela puede asignar; si Camila lo intentara, la base de datos lo rechaza.
+- En **Seguimiento**, Marcela abre a Valentina y elige la solicitud.
+- Si un candidato queda sin dueño, el Resumen avisa y enlaza a *Asignar*.
+- **Listo cuando:** solo Marcela puede asignar. Si Camila lo intenta, la base de datos lo rechaza.
 
 ### Paso 4 · Se entrevista
 
-> **Como** Camila, **quiero** entrevistar a Valentina con una ficha que ya trae sus datos, **para** no copiar información y no perder apuntes si se cae la conexión.
+> **Como** Camila, **quiero** una ficha de entrevista con los datos ya cargados, **para** no copiar nada ni perder apuntes.
 
-- En *Mi bandeja* pulsa **Entrevistar**. Elige **Videollamada** (con «Crear reunión en Meet» y un campo para pegar el enlace) o **Presencial** (con el lugar).
-- Completa estudios, experiencia, disponibilidad, turnos y traslado, renta y competencias, y escribe las observaciones. **Todo se guarda solo.**
-- Al primer guardado, Valentina pasa a **En proceso**.
-- Al terminar elige **Apto** o **No apto** y pulsa *Finalizar entrevista* (exige observaciones). La entrevista queda en solo lectura.
-- **Criterio de aceptación:** los apuntes y el resultado quedan guardados con quién entrevistó y cuándo.
+- En *Mi bandeja*, **Entrevistar**. Se elige **Videollamada** (Meet o enlace) o **Presencial** (lugar).
+- Camila llena la ficha y las observaciones. **Todo se guarda solo.** Al primer guardado, Valentina pasa a **En proceso**.
+- Al final elige **Apto** o **No apto** y pulsa *Finalizar entrevista* (pide observaciones). Queda en solo lectura.
+- Puede bajar el informe en PDF cuando quiera. Al finalizar, el PDF definitivo se guarda en la carpeta de Drive (si está activado).
+- **Listo cuando:** quedan guardados los apuntes, el resultado, quién entrevistó y cuándo.
 
 ### Paso 5 · Operaciones decide
 
-> **Como** Jorge, **quiero** leer el resumen de la entrevista de cada apto y decidir si lo selecciono, **para** incorporar a quien mejor calza con mi turno.
+> **Como** Jorge, **quiero** leer la entrevista de cada apto y decidir, **para** incorporar a quien mejor calza con mi turno.
 
-- Valentina, ahora **Apta**, aparece en *Aptos por decidir*. Jorge abre **Ver entrevista**, revisa estudios, experiencia, disponibilidad, competencias y observaciones.
-- Pulsa **Seleccionar**, o **Descartar** escribiendo el motivo. Si se equivoca, usa **Reconsiderar**.
-- Jorge solo ve los apuntes de candidatos aptos: las entrevistas de quienes no pasaron no le son visibles.
-- **Criterio de aceptación:** al seleccionar, la vacante cuenta como cubierta («1 de 3») y la base de datos registra quién decidió y cuándo, sin que se pueda falsificar.
+- Valentina, ya **Apta**, aparece en *Aptos por decidir*. Jorge abre **Ver entrevista**.
+- Pulsa **Seleccionar** o **Descartar** (con motivo). **Reconsiderar** deshace la decisión.
+- Jorge también puede bajar el PDF de la entrevista.
+- Jorge solo ve entrevistas de candidatos aptos.
+- **Listo cuando:** la vacante cuenta como cubierta («1 de 3») y queda registrado quién decidió y cuándo.
 
 ### Paso 6 · La jefatura supervisa
 
-> **Como** Marcela, **quiero** ver el avance de un vistazo, **para** detectar cuellos de botella sin revisar caso por caso.
+> **Como** Marcela, **quiero** ver el avance de un vistazo, **para** detectar atrasos sin revisar caso por caso.
 
-- El **Resumen** muestra los candidatos por etapa, los que más llevan esperando evaluación y las vacantes cubiertas. Cada etapa lleva a *Seguimiento* ya filtrada.
-- Cuando Diego, otro reclutador, sale de vacaciones, Marcela lo marca **Ausente**. En *Equipo y accesos* la columna «Casos abiertos» muestra cuántos casos tiene y el enlace **Reasignar** abre esos candidatos para repartirlos.
-- **Criterio de aceptación:** una persona ausente conserva su acceso, pero sus casos pueden pasar a otra.
+- El **Resumen** muestra candidatos por etapa, los que llevan más tiempo esperando y las vacantes cubiertas. Cada etapa enlaza a *Seguimiento* ya filtrada.
+- Si Diego, otro reclutador, sale de vacaciones, Marcela lo marca **Ausente** y usa **Reasignar** para repartir sus casos.
+- En **Auditoría** ve quién creó, cambió o eliminó registros. No se puede editar ni borrar.
+- **Listo cuando:** una persona ausente conserva su acceso, pero sus casos pasan a otra.
 
 ### Paso 7 · Alguien deja la empresa
 
-> **Como** Marcela, **quiero** revocar el acceso de quien se desvincula sin perder lo que hizo, **para** proteger los datos sensibles y conservar el historial.
+> **Como** Marcela, **quiero** quitar el acceso a quien se va sin perder lo que hizo, **para** proteger los datos y conservar el historial.
 
-- Marca a la persona como **Inactivo** y confirma en la misma fila. Pierde el acceso al instante, incluso con una sesión abierta.
-- **Criterio de aceptación:** la persona no se borra; sigue figurando como quien evaluó o decidió en cada caso.
+- Marcela marca a la persona como **Inactivo** y confirma. Pierde el acceso al instante, incluso con sesión abierta.
+- **Listo cuando:** la persona no se borra y sigue figurando en lo que evaluó o decidió.
 
 **Estado del candidato a lo largo del flujo**
 
@@ -360,13 +382,34 @@ Esta historia recorre el flujo completo con las mismas personas que aparecen en 
 | Entrevista finalizada | Apto / No apto | Reclutador |
 | Decisión sobre los aptos | Seleccionado / Descartado | Operaciones |
 
+## 🤖 Asistente Inteligente de Reclutamiento
+
+Un chat flotante (esquina inferior derecha) disponible para **admin, reclutador y Operaciones**. Permite preguntar en lenguaje natural, por ejemplo «candidatos con experiencia en maquinaria o planta» o «¿quiénes están Aptos pendientes de decisión?». Cuando la respuesta menciona a un candidato, incluye un enlace «Ver ficha» (el reclutador va a su entrevista; el admin, a Seguimiento; Operaciones, a Candidatos).
+
+**Cómo protege los datos**
+- El filtrado por rol ocurre en la Edge Function `asistente-candidatos`, **antes** de llamar al modelo: Operaciones solo recibe candidatos *Apto* y sus entrevistas. Lo que no se envía, el modelo no lo puede revelar.
+- La función valida el JWT de la sesión, rechaza perfiles *Inactivos* y lee el rol de `app_metadata.rol`.
+- El contexto que recibe el modelo no incluye RUT, teléfono ni correo.
+- El *system prompt* obliga a responder solo con el contexto, a no inventar datos, a rechazar temas ajenos al sistema y a ignorar órdenes escondidas en los datos.
+
+**Búsqueda en currículums.** Al registrar un candidato con CV en PDF, el navegador extrae su texto (máx. 6.000 caracteres, con `pdfjs-dist`) y lo guarda en `candidatos.cv_texto`. Si el PDF no se puede leer, el candidato se guarda igual. Requiere ejecutar `docs/migracion_cv_texto.sql`; los candidatos ya registrados no tienen texto de CV.
+
+**Activación (desde `frontend/`)**
+```bash
+supabase functions deploy asistente-candidatos
+supabase secrets set LLM_API_KEY=tu-clave
+# Opcional; por defecto OpenAI y gpt-4o-mini. Sirve cualquier endpoint con formato OpenAI (Groq, Gemini compatible, etc.):
+supabase secrets set LLM_API_URL=https://api.openai.com/v1/chat/completions LLM_MODEL=gpt-4o-mini
+```
+Sin `LLM_API_KEY` el chat muestra que el asistente aún no está configurado y el resto de la aplicación no se ve afectado.
+
 ## 🧪 8. Pruebas Unitarias y Calidad
 
-El proyecto cuenta con **229 pruebas unitarias** que pasan en verde, ejecutadas con **Karma + Jasmine** y React Testing Library. Cubren páginas, componentes, servicios, validación de RUT y teléfono, y el control de roles: la estructura y el inicio de cada rol, los permisos del admin, el reclutador y Operaciones, la asignación, la entrevista con autoguardado, la decisión de Operaciones, la gestión del equipo y los mensajes cuando falta una migración.
+El proyecto cuenta con **269 pruebas unitarias** que pasan en verde, ejecutadas con **Karma + Jasmine** y React Testing Library. Cubren páginas, componentes, servicios, validación de RUT y teléfono, y el control de roles: la estructura y el inicio de cada rol, los permisos del admin, el reclutador y Operaciones, la asignación, la entrevista con autoguardado, la decisión de Operaciones, la gestión del equipo el registro de auditoría, la generación del informe PDF, la subida a Drive y los mensajes cuando falta una migración.
 
 | Comando | Descripción |
 | :--- | :--- |
-| `npm test` | Ejecuta las 229 pruebas unitarias en Chrome Headless y genera la cobertura. |
+| `npm test` | Ejecuta las 269 pruebas unitarias en Chrome Headless y genera la cobertura. |
 | `npm run lint` | Análisis estático con ESLint (0 errores y 0 advertencias). |
 | `npm run build` | Compilación de producción con Vite. |
 | `npm run capturas` | Regenera las capturas del README con datos de muestra (requiere Chrome). |
@@ -402,12 +445,17 @@ flowchart TD
 - **Entrevista:** ficha precargada, videollamada (Google Meet) o presencial, autoguardado y cierre con decisión.
 - **Decisión de Operaciones:** seleccionar o descartar con motivo, protegida en la base de datos.
 - **Separación de funciones:** el admin supervisa; el reclutador opera; Operaciones decide. Un solo camino para entrevistar (la pantalla antigua de evaluación redirige a la entrevista).
+- **Informe PDF de la entrevista:** documento A4 con logo, redactado como acta (cláusulas numeradas, texto justificado y firmas) con los datos del candidato, la entrevista, las competencias, las observaciones y el dictamen. Se descarga desde la entrevista, Aptos por decidir y Seguimiento, y puede guardarse en la carpeta de Drive del candidato.
+- **Registro de auditoría:** tabla inalterable alimentada por triggers; solo el administrador la lee (`/auditoria`).
+- **Dependencias:** `npm audit fix` eliminó las vulnerabilidades altas; quedan 8 moderadas solo en herramientas de desarrollo.
 - **Seguridad:** triggers y políticas RLS que respaldan cada restricción de la interfaz y comprueban que la persona no esté inactiva.
 - **Mensajes claros:** si falta una migración, la pantalla indica qué archivo ejecutar.
 - **Accesibilidad y estilo:** enlaces de texto con contraste suficiente, y sin bordes de color gruesos ni emojis como íconos en las pantallas nuevas.
 
 **Pendiente y próximos pasos**
 
+- **Carta de resultado al candidato:** un documento breve (sin observaciones ni puntajes) que una persona confirme enviar después de la decisión de Operaciones. Requiere un servicio de envío de correos. El informe completo es interno y no se envía al candidato.
+- **Auditoría ampliada:** registrar intentos de inicio de sesión fallidos y descargas de informes.
 - **Etapa de contacto e incorporación** tras *Seleccionado* (por ejemplo: Por contactar → Contactado → Ingresó), para que una vacante figure como cubierta cuando la persona realmente ingresa.
 - **Agenda de entrevistas:** fecha y hora, y creación de la reunión de Meet con invitación automática por correo (la columna `fecha_hora` ya está preparada).
 - **Reabrir una entrevista finalizada**, con permiso del administrador, para corregir una decisión equivocada.

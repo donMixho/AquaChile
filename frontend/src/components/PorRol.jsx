@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../context/permisos';
 import Layout from './Layout';
 import AdminLayout from './AdminLayout';
+import OperacionesLayout from './OperacionesLayout';
 import AdminResumen from '../pages/AdminResumen';
 import MiBandeja from '../pages/MiBandeja';
 import Aptos from '../pages/Aptos';
@@ -10,9 +11,14 @@ import Dashboard from '../pages/Dashboard';
 import Candidatos from '../pages/Candidatos';
 
 // Cada rol tiene su propia estructura e inicio: el admin trabaja con navegación lateral y un
-// resumen de gestión; el reclutador con su bandeja y Operaciones con los aptos por decidir, ambos
-// bajo el menú superior.
-export const LayoutPorRol = () => (useAuth().rol === ROLES.ADMIN ? <AdminLayout /> : <Layout />);
+// resumen de gestión; Operaciones con una vista angosta de decisión sobre los aptos; el reclutador
+// (y quien no tenga rol conocido) con el menú superior.
+export const LayoutPorRol = () => {
+  const { rol } = useAuth();
+  if (rol === ROLES.ADMIN) return <AdminLayout />;
+  if (rol === ROLES.OPERACIONES) return <OperacionesLayout />;
+  return <Layout />;
+};
 
 export const InicioPorRol = () => {
   const { rol } = useAuth();
