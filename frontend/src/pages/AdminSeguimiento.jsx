@@ -53,8 +53,12 @@ const AdminSeguimiento = () => {
   const [errorCarga, setErrorCarga] = useState('');
   const [guardandoAsignacion, setGuardandoAsignacion] = useState(false);
   const [errorAsignacion, setErrorAsignacion] = useState('');
+  const [exitoAsignacion, setExitoAsignacion] = useState('');
 
   const [seleccionadoId, setSeleccionadoId] = useState(null);
+  const [reclutadorTemp, setReclutadorTemp] = useState('');
+  const [solicitudTemp, setSolicitudTemp] = useState('');
+
   const [confirmando, setConfirmando] = useState(false);
   const [nombreEscrito, setNombreEscrito] = useState('');
   const [eliminando, setEliminando] = useState(false);
@@ -128,14 +132,30 @@ const AdminSeguimiento = () => {
   const seleccionado = candidatos.find((c) => c.id === seleccionadoId) ?? null;
   const filtrando = Boolean(estado || familia || busqueda || responsable);
 
-  // Se guarda al elegir, sin botón aparte: un cambio, un efecto.
-  const asignar = async (cambios) => {
+  // Sincronizar estados temporales cuando se selecciona un candidato
+  useEffect(() => {
+    if (seleccionado) {
+      setReclutadorTemp(seleccionado.reclutador_id ?? '');
+      setSolicitudTemp(seleccionado.solicitud_id ?? '');
+      setExitoAsignacion('');
+      setErrorAsignacion('');
+    }
+  }, [seleccionadoId]);
+
+  // Se guarda al presionar el botón de guardar asignación
+  const guardarAsignacion = async () => {
     if (!seleccionado || guardandoAsignacion) return;
     setErrorAsignacion('');
+    setExitoAsignacion('');
     setGuardandoAsignacion(true);
     try {
+      const cambios = {
+        reclutadorId: reclutadorTemp || null,
+        solicitudId: solicitudTemp || null
+      };
       const guardado = await asignarCandidato(seleccionado.id, cambios);
       setCandidatos((lista) => lista.map((c) => (c.id === guardado.id ? guardado : c)));
+      setExitoAsignacion('Asignación guardada correctamente.');
     } catch (error) {
       setErrorAsignacion(error?.message ?? 'No se pudo guardar la asignación.');
     } finally {
@@ -152,6 +172,7 @@ const AdminSeguimiento = () => {
     setNombreEscrito('');
     setErrorEliminar('');
     setErrorAsignacion('');
+    setExitoAsignacion('');
   };
 
   const normalizarNombre = (t) => String(t ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -354,9 +375,9 @@ const AdminSeguimiento = () => {
                   <label htmlFor="asig-responsable" className="mb-1 block text-sm font-semibold text-aqua-blue">Responsable</label>
                   <select
                     id="asig-responsable"
-                    value={seleccionado.reclutador_id ?? ''}
+                    value={reclutadorTemp}
                     disabled={guardandoAsignacion}
-                    onChange={(e) => asignar({ reclutadorId: e.target.value })}
+                    onChange={(e) => setReclutadorTemp(e.target.value)}
                     className={`${campo} w-full disabled:cursor-wait disabled:opacity-50`}
                   >
                     <option value="">Sin asignar</option>
@@ -371,9 +392,9 @@ const AdminSeguimiento = () => {
                   <label htmlFor="asig-solicitud" className="mb-1 block text-sm font-semibold text-aqua-blue">Solicitud de cargo</label>
                   <select
                     id="asig-solicitud"
-                    value={seleccionado.solicitud_id ?? ''}
+                    value={solicitudTemp}
                     disabled={guardandoAsignacion}
-                    onChange={(e) => asignar({ solicitudId: e.target.value })}
+                    onChange={(e) => setSolicitudTemp(e.target.value)}
                     className={`${campo} w-full disabled:cursor-wait disabled:opacity-50`}
                   >
                     <option value="">Sin solicitud</option>
@@ -384,7 +405,18 @@ const AdminSeguimiento = () => {
                       ))}
                   </select>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={guardarAsignacion}
+                  disabled={guardandoAsignacion}
+                  className={`cursor-pointer rounded-lg border-none bg-aqua-orange px-4 py-2 text-sm font-bold text-white hover:bg-[#d9561a] disabled:cursor-not-allowed disabled:opacity-50 ${foco}`}
+                >
+                  {guardandoAsignacion ? 'Guardando...' : 'Guardar asignación'}
+                </button>
+
                 {errorAsignacion && <Alerta>{errorAsignacion}</Alerta>}
+                {exitoAsignacion && <Alerta tipo="exito">{exitoAsignacion}</Alerta>}
               </div>
             )}
 
