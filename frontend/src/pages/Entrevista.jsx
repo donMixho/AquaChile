@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { obtenerCandidatoPorId } from '../services/candidatosService';
 import { obtenerSolicitudPorId } from '../services/solicitudesService';
 import { finalizarEvaluacion, guardarBorrador, obtenerEvaluacion } from '../services/evaluacionesService';
 import Alerta from '../components/Alerta';
 import InsigniaEstado from '../components/InsigniaEstado';
+import BlocNotasRapido from '../components/BlocNotasRapido';
 import { descargarInformePdf, prepararInformeParaSubir } from '../utils/informePdf';
 import { subirInformeDrive } from '../services/driveService';
 
@@ -71,6 +72,7 @@ const Nivel = ({ nombre, valor, onChange, deshabilitado }) => (
 // apuntes. La videollamada se hace en otra ventana (Meet, Teams y Zoom no se pueden incrustar).
 const Entrevista = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const evaluadorId = user?.id;
   const nombreEvaluador = user?.user_metadata?.nombre ?? user?.email ?? null;
@@ -95,7 +97,7 @@ const Entrevista = () => {
   const [finalizando, setFinalizando] = useState(false);
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const [informeDriveUrl, setInformeDriveUrl] = useState('');
-  const guardando = useRef(false);
+  const guardandoRef = useRef(false);
 
   useEffect(() => {
     let activo = true;
@@ -137,8 +139,8 @@ const Entrevista = () => {
   );
 
   const guardarAhora = useCallback(async () => {
-    if (!candidato || guardando.current) return;
-    guardando.current = true;
+    if (!candidato || guardandoRef.current) return;
+    guardandoRef.current = true;
     setGuardado('guardando');
     setError('');
     try {
@@ -151,7 +153,7 @@ const Entrevista = () => {
       setGuardado('error');
       setError(`No se pudo guardar el borrador: ${e?.message ?? 'error desconocido'}`);
     } finally {
-      guardando.current = false;
+      guardandoRef.current = false;
     }
   }, [candidato, evaluadorId, datosFicha]);
 
@@ -220,6 +222,11 @@ const Entrevista = () => {
       setFinalizada(true);
       setSucio(false);
       guardarInformeEnDrive(finalizado);
+      
+      // Redirección limpia tras 2 segundos para evitar pantalla en blanco
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
     } catch (e) {
       setError(e?.message ?? 'No se pudo finalizar la entrevista.');
     } finally {
@@ -295,6 +302,10 @@ const Entrevista = () => {
       <div className="grid items-start gap-6 lg:grid-cols-[20rem_1fr]">
         <aside aria-label="Ficha del candidato" className="flex flex-col gap-5 rounded-xl border border-gray-200 bg-white p-5 lg:sticky lg:top-24">
           <h2 className="m-0 text-base font-bold text-aqua-dark">Ficha del candidato</h2>
+          
+          {/* Bloc de Notas Rápido integrado */}
+          <BlocNotasRapido candidatoId={candidato?.id} nombreCandidato={candidato?.nombre_completo} />
+
           <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-3">
             <Dato titulo="RUT">{candidato.rut}</Dato>
             <Dato titulo="Teléfono">{candidato.telefono}</Dato>
@@ -487,8 +498,8 @@ const Entrevista = () => {
             {error && <Alerta>{error}</Alerta>}
             {finalizada && (
               <Alerta tipo="exito">
-                Entrevista finalizada: {resultado}. El resultado ya quedó registrado.{' '}
-                <Link to="/" className="font-bold text-green-900 underline">Volver a mi bandeja</Link>
+                Entrevista finalizada: {resultado}. El resultado ya quedó registrado. Redirigiendo a tu bandeja...{' '}
+                <Link to="/" className="font-bold text-green-900 underline">Volver a mi bandeja ahora</Link>
               </Alerta>
             )}
 
